@@ -8,14 +8,14 @@ from typing import Any, Optional, Union
 from urllib.parse import urljoin
 
 import click
-from envied.core.constants import AnyTrack
-from envied.core.manifests import DASH
-from envied.core.search_result import SearchResult
-from envied.core.service import Service
-from envied.core.titles import Episode, Movie, Movies, Series, Title_T, Titles_T
-from envied.core.tracks import Chapter, Chapters, Tracks
-from envied.core.utils.xml import load_xml
 from requests import Request
+from unshackle.core.constants import AnyTrack
+from unshackle.core.manifests import DASH
+from unshackle.core.search_result import SearchResult
+from unshackle.core.service import Service
+from unshackle.core.titles import Episode, Movie, Movies, Series, Title_T, Titles_T
+from unshackle.core.tracks import Chapter, Chapters, Tracks
+from unshackle.core.utils.xml import load_xml
 
 
 class RTE(Service):
@@ -24,7 +24,7 @@ class RTE(Service):
     Service code for RTE Player streaming service (https://www.rte.ie/player/).
 
     \b
-    Version: 1.0.0
+    Version: 1.0.1
     Author: stabbedbybrick
     Authorization: None
     Robustness:
@@ -45,7 +45,7 @@ class RTE(Service):
 
     """
 
-    #GEOFENCE = ("ie",)
+    # GEOFENCE = ("ie",)
 
     @staticmethod
     @click.command(name="RTE", short_help="https://www.rte.ie/player/", help=__doc__)

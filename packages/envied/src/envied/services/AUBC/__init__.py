@@ -9,15 +9,13 @@ from urllib.parse import urljoin
 
 import click
 from click import Context
-
-from envied.core.constants import AnyTrack
-from envied.core.credential import Credential
-from envied.core.manifests import DASH
-from envied.core.search_result import SearchResult
-from envied.core.service import Service
-from envied.core.titles import Episode, Movie, Movies, Series, Title_T, Titles_T
-from envied.core.tracks import Chapter, Subtitle, Tracks
 from requests import Request
+from unshackle.core.constants import AnyTrack
+from unshackle.core.manifests.dash import DASH
+from unshackle.core.search_result import SearchResult
+from unshackle.core.service import Service
+from unshackle.core.titles import Episode, Movie, Movies, Series
+from unshackle.core.tracks import Chapter, Chapters, Subtitle, Tracks
 
 
 class AUBC(Service):
@@ -26,7 +24,7 @@ class AUBC(Service):
     Service code for ABC iView streaming service (https://iview.abc.net.au/).
 
     \b
-    Version: 1.0.1
+    Version: 1.0.2
     Author: stabbedbybrick
     Authorization: None
     Robustness:
@@ -155,14 +153,14 @@ class AUBC(Service):
         return tracks
 
     def get_chapters(self, title: Union[Movie, Episode]) -> Chapters:
-        # if not title.data.get("cuePoints"):
-        #     return Chapters()
+        if not title.data.get("cuePoints"):
+            return Chapters()
         
-        # credits = next((x.get("start") for x in title.data["cuePoints"] if x["type"] == "end-credits"), None)
-        # if credits:
-        #     return Chapters([Chapter(name="Credits", timestamp=credits * 1000)])
+        credits = next((x.get("start") for x in title.data["cuePoints"] if x["type"] == "end-credits"), None)
+        if credits:
+            return Chapters([Chapter(name="Credits", timestamp=credits * 1000)])
         
-        return []
+        return Chapters()
 
     def get_widevine_service_certificate(self, **_: Any) -> str:
         return None
@@ -215,11 +213,10 @@ class AUBC(Service):
     
     def create_episode(self, episode: dict) -> Episode:
         title = episode["showTitle"]
-        season = re.search(r"Series (\d+)", episode.get("title"))
-        number = re.search(r"Episode (\d+)", episode.get("title"))
-        names_a = re.search(r"Series \d+ Episode \d+ (.+)", episode.get("title"))
-        names_b = re.search(r"Series \d+ (.+)", episode.get("title"))
-        name = names_a.group(1) if names_a else names_b.group(1) if names_b else episode.get("displaySubtitle")
+        series_id = episode.get("analytics", {}).get("dataLayer", {}).get("d_series_id", "")
+        episode_name = episode.get("analytics", {}).get("dataLayer", {}).get("d_episode_name", "")
+        number = re.search(r"Episode (\d+)", episode.get("displaySubtitle", ""))
+        name = re.search(r"S\d+\sEpisode\s\d+\s(.*)", episode_name)
 
         language = episode.get("analytics", {}).get("dataLayer", {}).get("d_language", "en")
 
@@ -227,9 +224,9 @@ class AUBC(Service):
             id_=episode["id"],
             service=self.__class__,
             title=title,
-            season=int(season.group(1)) if season else 0,
+            season=int(series_id.split("-")[-1]) if series_id else 0,
             number=int(number.group(1)) if number else 0,
-            name=name,
+            name=name.group(1) if name else None,
             data=episode,
             language=language,
         )

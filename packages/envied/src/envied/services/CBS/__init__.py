@@ -8,15 +8,15 @@ from typing import Any, Optional, Union
 from urllib.parse import urljoin
 
 import click
-from envied.core.constants import AnyTrack
-from envied.core.manifests import DASH
-from envied.core.search_result import SearchResult
-from envied.core.service import Service
-from envied.core.titles import Episode, Series, Title_T, Titles_T
-from envied.core.tracks import Chapter, Chapters, Tracks
-from envied.core.utils.sslciphers import SSLCiphers
-from envied.core.utils.xml import load_xml
 from requests import Request
+from unshackle.core.constants import AnyTrack
+from unshackle.core.manifests import DASH
+from unshackle.core.search_result import SearchResult
+from unshackle.core.service import Service
+from unshackle.core.titles import Episode, Series, Title_T, Titles_T
+from unshackle.core.tracks import Chapter, Chapters, Tracks
+from unshackle.core.utils.sslciphers import SSLCiphers
+from unshackle.core.utils.xml import load_xml
 
 
 class CBS(Service):
@@ -26,7 +26,7 @@ class CBS(Service):
     Credit to @srpen6 for the tip on anonymous session
 
     \b
-    Version: 1.0.0
+    Version: 1.0.1
     Author: stabbedbybrick
     Authorization: None
     Robustness:

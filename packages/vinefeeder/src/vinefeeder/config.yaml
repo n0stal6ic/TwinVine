@@ -1,2 +1,3 @@
 BATCH_DOWNLOAD: false
-TERMINAL_RESET: true
+TERMINAL_RESET:  false
+TERMINAL: gnome-terminal

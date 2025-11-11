@@ -87,7 +87,7 @@ class TPTV(Service):
         self.profile = ctx.parent.params.get("profile")
         if not self.profile:
             self.profile = "default"
-
+        self.session = requests.session()
         self.session.headers.update(self.config["headers"])
 
     def authenticate(self, cookies: Optional[MozillaCookieJar] = None, credential: Optional[Credential] = None) -> None:
@@ -147,7 +147,7 @@ class TPTV(Service):
             tokens = res
             self.log.info(" + Acquired tokens...")
 
-        cache.set(tokens)
+        # cache.set(tokens)
 
         self.authorization = tokens
 

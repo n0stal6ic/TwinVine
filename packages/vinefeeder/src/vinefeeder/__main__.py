@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (QApplication,QWidget,QVBoxLayout,QLabel,QLineEdit,QPushButton,QCheckBox,QFrame,)
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QProcess 
 from PyQt6.QtGui import QPalette, QColor
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QHBoxLayout, QSlider
@@ -58,23 +58,6 @@ _PKG_NAME = "vinefeeder"
 _CFG_NAME = "config.yaml"
 
 
-
-
-
-'''def load_config_with_fallback() -> tuple[dict, Path | None]:
-    """
-    Returns (config_dict, user_path_if_used_or_None).
-    Prefers user config; falls back to package-bundled default.
-    """
-    user_path = _user_config_path()
-    if user_path.exists():
-        data = yaml.safe_load(user_path.read_text(encoding="utf-8")) or {}
-        return data, user_path
-
-    # packaged default
-    with resources.files(_PKG_NAME).joinpath(_CFG_NAME).open("rb") as f:
-        data = yaml.safe_load(f) or {}
-    return data, None'''
 
 
 
@@ -319,16 +302,15 @@ class VineFeeder(QWidget):
 
             # Set button text to white in dark mode, remove red border
             for i in range(self.highlighted_layout.count()):
-                button = self.highlighted_layout.itemAt(i).widget()
-                if isinstance(button, QPushButton):
-                    button.setStyleSheet("""
+                b = self.highlighted_layout.itemAt(i).widget()
+                if isinstance(b, QPushButton) and b.objectName() != "enviedButton":  # <-- skip Envied
+                    b.setStyleSheet("""
                         color: white;
                         background-color:#1E1E2E;
                         border: none;
                         padding: 5px;
                     """)
-                    button.repaint()  # Force update of the button's appearance
-
+                    b.repaint()
         else:
             self.setPalette(QApplication.palette())
             self.search_url_label.setStyleSheet("color: black;")
@@ -336,15 +318,15 @@ class VineFeeder(QWidget):
             self.batch_label.setStyleSheet("color: black;")
 
             for i in range(self.highlighted_layout.count()):
-                button = self.highlighted_layout.itemAt(i).widget()
-                if isinstance(button, QPushButton):
-                    button.setStyleSheet("""
+                b = self.highlighted_layout.itemAt(i).widget()
+                if isinstance(b, QPushButton) and b.objectName() != "enviedButton":  # <-- skip Envied
+                    b.setStyleSheet("""
                         color: black;
                         background-color: #aeaeae;
                         border: none;
                         padding: 5px;
                     """)
-                    button.repaint()  # Force update of the button's appearance
+                    b.repaint()
         # Update batch_label based on dark mode and batch mode state
         if self.batch_slider.value() == 1:
             self.batch_label.setStyleSheet("color: lightgreen; padding-left: 5px; border: none;")
@@ -477,7 +459,36 @@ class VineFeeder(QWidget):
         button.clicked.connect(
             lambda: self.run_script("./gui.py"))
         self.highlighted_layout.addWidget(button)
+        if os.name == "posix":  # linux
+            button = QPushButton("Envied")
+            button.setObjectName("enviedButton")  # <-- add this
+            button.setStyleSheet("color: #f5c2e7; border: none; background-color:#1E1E2E;padding: 5px;")  # your pink
+            button.clicked.connect(lambda: self.run_script("./envied_gui.py"))
+            
+        elif os.name == "nt":
+            button = QPushButton("Envied Config")
+            button.setObjectName("enviedButton")  # <-- add this
+            button.setStyleSheet("color: #f5c2e7; border: none; background-color:#1E1E2E;padding: 5px;")  # your pink
+            
+            
+            CFG = os.path.abspath("./packages/envied/src/envied/envied.yaml")
+            button.clicked.connect(lambda: QProcess.startDetached("notepad.exe", [CFG]))
+        self.highlighted_layout.addWidget(button)
+            
 
+
+    def run_cmd(self, argv):
+        """
+        Non-blocking run using QProcess.
+        """
+        proc = QProcess(self)
+        # Optional: forward output to your terminal
+        proc.setProgram(argv[0])
+        proc.setArguments(argv[1:])
+        # Show output in your launching terminal (detach these if not needed)
+        proc.readyReadStandardOutput.connect(lambda p=proc: print(p.readAllStandardOutput().data().decode(), end=""))
+        proc.readyReadStandardError.connect(lambda p=proc: print(p.readAllStandardError().data().decode(), end=""))
+        proc.start()
 
     def run_script(self, path: str):
         """

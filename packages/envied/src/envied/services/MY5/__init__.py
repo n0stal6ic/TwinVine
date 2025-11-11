@@ -12,12 +12,12 @@ import click
 import requests
 from click import Context
 from pywidevine.cdm import Cdm as WidevineCdm
-from unshackle.core.manifests.dash import DASH
-from unshackle.core.search_result import SearchResult
-from unshackle.core.service import Service
-from unshackle.core.titles import Episode, Movie, Movies, Series
-from unshackle.core.tracks import Chapter, Tracks
-from unshackle.core.utils.sslciphers import SSLCiphers
+from envied.core.manifests.dash import DASH
+from envied.core.search_result import SearchResult
+from envied.core.service import Service
+from envied.core.titles import Episode, Movie, Movies, Series
+from envied.core.tracks import Chapter, Tracks
+from envied.core.utils.sslciphers import SSLCiphers
 
 
 class MY5(Service):

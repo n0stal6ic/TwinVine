@@ -11,13 +11,13 @@ from urllib.parse import urljoin
 import click
 from click import Context
 from requests import Request
-from unshackle.core.constants import AnyTrack
-from unshackle.core.credential import Credential
-from unshackle.core.manifests import DASH, HLS
-from unshackle.core.search_result import SearchResult
-from unshackle.core.service import Service
-from unshackle.core.titles import Episode, Movie, Movies, Series
-from unshackle.core.tracks import Chapter, Chapters, Tracks
+from envied.core.constants import AnyTrack
+from envied.core.credential import Credential
+from envied.core.manifests import DASH, HLS
+from envied.core.search_result import SearchResult
+from envied.core.service import Service
+from envied.core.titles import Episode, Movie, Movies, Series
+from envied.core.tracks import Chapter, Chapters, Tracks
 
 
 class CBC(Service):

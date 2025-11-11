@@ -9,11 +9,11 @@ from urllib.parse import urlparse
 import click
 from click import Context
 from lxml import etree
-from unshackle.core.manifests.dash import DASH
-from unshackle.core.search_result import SearchResult
-from unshackle.core.service import Service
-from unshackle.core.titles import Episode, Movie, Movies, Series
-from unshackle.core.tracks import Chapter, Chapters, Tracks
+from envied.core.manifests.dash import DASH
+from envied.core.search_result import SearchResult
+from envied.core.service import Service
+from envied.core.titles import Episode, Movie, Movies, Series
+from envied.core.tracks import Chapter, Chapters, Tracks
 
 
 class STV(Service):

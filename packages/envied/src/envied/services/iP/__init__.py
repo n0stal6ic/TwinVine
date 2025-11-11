@@ -14,13 +14,13 @@ from typing import Any, Union
 import click
 from bs4 import XMLParsedAsHTMLWarning
 from click import Context
-from unshackle.core.manifests import DASH, HLS
-from unshackle.core.search_result import SearchResult
-from unshackle.core.service import Service
-from unshackle.core.titles import Episode, Movie, Movies, Series
-from unshackle.core.tracks import Audio, Chapters, Subtitle, Tracks, Video
-from unshackle.core.utils.collections import as_list
-from unshackle.core.utils.sslciphers import SSLCiphers
+from envied.core.manifests import DASH, HLS
+from envied.core.search_result import SearchResult
+from envied.core.service import Service
+from envied.core.titles import Episode, Movie, Movies, Series
+from envied.core.tracks import Audio, Chapters, Subtitle, Tracks, Video
+from envied.core.utils.collections import as_list
+from envied.core.utils.sslciphers import SSLCiphers
 
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 

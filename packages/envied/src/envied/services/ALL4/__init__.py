@@ -15,12 +15,12 @@ from click import Context
 from Crypto.Util.Padding import unpad
 from Cryptodome.Cipher import AES
 from pywidevine.cdm import Cdm as WidevineCdm
-from unshackle.core.credential import Credential
-from unshackle.core.manifests.dash import DASH
-from unshackle.core.search_result import SearchResult
-from unshackle.core.service import Service
-from unshackle.core.titles import Episode, Movie, Movies, Series
-from unshackle.core.tracks import Chapter, Subtitle, Tracks
+from envied.core.credential import Credential
+from envied.core.manifests.dash import DASH
+from envied.core.search_result import SearchResult
+from envied.core.service import Service
+from envied.core.titles import Episode, Movie, Movies, Series
+from envied.core.tracks import Chapter, Subtitle, Tracks
 
 
 class ALL4(Service):

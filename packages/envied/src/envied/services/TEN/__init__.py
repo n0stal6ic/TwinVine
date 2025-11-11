@@ -20,14 +20,14 @@ import m3u8
 from click import Context
 from langcodes import Language
 from requests import Request
-from unshackle.core.config import config
-from unshackle.core.credential import Credential
-from unshackle.core.downloaders import requests
-from unshackle.core.manifests import HLS
-from unshackle.core.search_result import SearchResult
-from unshackle.core.service import Service
-from unshackle.core.titles import Episode, Movie, Movies, Series
-from unshackle.core.tracks import Chapter, Chapters, Subtitle, Tracks, Video
+from envied.core.config import config
+from envied.core.credential import Credential
+from envied.core.downloaders import requests
+from envied.core.manifests import HLS
+from envied.core.search_result import SearchResult
+from envied.core.service import Service
+from envied.core.titles import Episode, Movie, Movies, Series
+from envied.core.tracks import Chapter, Chapters, Subtitle, Tracks, Video
 
 
 class TEN(Service):

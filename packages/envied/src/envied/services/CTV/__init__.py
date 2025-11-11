@@ -11,12 +11,12 @@ from typing import Any, Optional
 
 import click
 from pywidevine.cdm import Cdm as WidevineCdm
-from unshackle.core.credential import Credential
-from unshackle.core.manifests import DASH
-from unshackle.core.search_result import SearchResult
-from unshackle.core.service import Service
-from unshackle.core.titles import Episode, Movie, Movies, Series, Title_T, Titles_T
-from unshackle.core.tracks import Audio, Chapter, Subtitle, Tracks, Video
+from envied.core.credential import Credential
+from envied.core.manifests import DASH
+from envied.core.search_result import SearchResult
+from envied.core.service import Service
+from envied.core.titles import Episode, Movie, Movies, Series, Title_T, Titles_T
+from envied.core.tracks import Audio, Chapter, Subtitle, Tracks, Video
 
 
 class CTV(Service):

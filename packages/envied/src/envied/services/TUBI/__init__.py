@@ -10,12 +10,12 @@ from typing import Any
 
 import click
 from langcodes import Language
-from unshackle.core.downloaders import aria2c, requests
-from unshackle.core.manifests import DASH
-from unshackle.core.search_result import SearchResult
-from unshackle.core.service import Service
-from unshackle.core.titles import Episode, Movie, Movies, Series, Title_T, Titles_T
-from unshackle.core.tracks import Chapter, Chapters, Subtitle, Track, Tracks
+from envied.core.downloaders import aria2c, requests
+from envied.core.manifests import DASH
+from envied.core.search_result import SearchResult
+from envied.core.service import Service
+from envied.core.titles import Episode, Movie, Movies, Series, Title_T, Titles_T
+from envied.core.tracks import Chapter, Chapters, Subtitle, Track, Tracks
 
 
 class TUBI(Service):

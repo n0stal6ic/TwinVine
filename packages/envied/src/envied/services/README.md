@@ -5,7 +5,7 @@ Clone repository:
 
 `git clone https://github.com/stabbedbybrick/services.git`
 
-Add folder to `unshackle.yaml`:
+Add folder to `envied.yaml`:
 
 ```
 directories:

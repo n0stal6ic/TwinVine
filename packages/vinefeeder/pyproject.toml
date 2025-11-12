@@ -1,9 +1,9 @@
 [project]
 name = "vinefeeder"
-version = "0.1.0"
+version = "0.2.0"
 description = "GUI front-end for envied"
 readme = "README.md"
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10,<=3.13"
 
 dependencies = [
   "envied",         # resolved via [tool.uv.sources] at the workspace root

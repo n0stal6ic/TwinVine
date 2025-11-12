@@ -10,7 +10,7 @@ from appdirs import AppDirs
 class Config:
     class _Directories:
         # default directories, do not modify here, set via config
-        app_dirs = AppDirs("./", False)
+        app_dirs = AppDirs("unshackle", False)
         core_dir = Path(__file__).resolve().parent
         namespace_dir = core_dir.parent
         commands = namespace_dir / "commands"
@@ -30,7 +30,8 @@ class Config:
 
     class _Filenames:
         # default filenames, do not modify here, set via config
-        log = "envied_{name}_{time}.log"  # Directories.logs
+        log = "unshackle_{name}_{time}.log"  # Directories.logs
+        debug_log = "unshackle_debug_{service}_{time}.jsonl"  # Directories.logs
         config = "config.yaml"  # Directories.services / tag
         root_config = "envied.yaml"  # Directories.user_configs
         chapters = "Chapters_{title}_{random}.txt"  # Directories.temp
@@ -88,15 +89,19 @@ class Config:
         self.tag_group_name: bool = kwargs.get("tag_group_name", True)
         self.tag_imdb_tmdb: bool = kwargs.get("tag_imdb_tmdb", True)
         self.tmdb_api_key: str = kwargs.get("tmdb_api_key") or ""
-        self.decrypt_labs_api_key: str = ""
+        self.simkl_client_id: str = kwargs.get("simkl_client_id") or ""
+        self.decrypt_labs_api_key: str = kwargs.get("decrypt_labs_api_key") or ""
         self.update_checks: bool = kwargs.get("update_checks", True)
         self.update_check_interval: int = kwargs.get("update_check_interval", 24)
         self.scene_naming: bool = kwargs.get("scene_naming", True)
         self.series_year: bool = kwargs.get("series_year", True)
-        self.pssh_display: str = kwargs.get("pssh_display") or "fold" 
+
         self.title_cache_time: int = kwargs.get("title_cache_time", 1800)  # 30 minutes default
         self.title_cache_max_retention: int = kwargs.get("title_cache_max_retention", 86400)  # 24 hours default
         self.title_cache_enabled: bool = kwargs.get("title_cache_enabled", True)
+
+        self.debug: bool = kwargs.get("debug", False)
+        self.debug_keys: bool = kwargs.get("debug_keys", False)
 
     @classmethod
     def from_yaml(cls, path: Path) -> Config:
@@ -109,12 +114,12 @@ class Config:
 
 # noinspection PyProtectedMember
 POSSIBLE_CONFIG_PATHS = (
-    # The envied Namespace Folder (e.g., %appdata%/Python/Python311/site-packages/envied)
+    # The unshackle Namespace Folder (e.g., %appdata%/Python/Python311/site-packages/unshackle)
     Config._Directories.namespace_dir / Config._Filenames.root_config,
-    # The Parent Folder to the envied Namespace Folder (e.g., %appdata%/Python/Python311/site-packages)
+    # The Parent Folder to the unshackle Namespace Folder (e.g., %appdata%/Python/Python311/site-packages)
     Config._Directories.namespace_dir.parent / Config._Filenames.root_config,
-    # The AppDirs User Config Folder (e.g., %localappdata%/envied)
-    Config._Directories.user_configs / Config._Filenames.root_config,
+    # The AppDirs User Config Folder (e.g., ~/.config/unshackle on Linux, %LOCALAPPDATA%\unshackle on Windows)
+    Path(Config._Directories.app_dirs.user_config_dir) / Config._Filenames.root_config,
 )
 
 

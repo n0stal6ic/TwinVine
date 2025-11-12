@@ -1,4 +1,4 @@
-A collection of non-premium services for Unshackle.
+A collection of non-premium services for envied.
 
 ## Usage:
 Clone repository:

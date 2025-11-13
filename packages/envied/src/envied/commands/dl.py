@@ -1095,7 +1095,7 @@ class dl:
                 for subtitle in title.tracks.subtitles:
                     if subtitle.sdh and not any(
                         is_close_match(subtitle.language, [x.language])
-                        for x in title.tcekracks.subtitles
+                        for x in title.tracks.subtitles
                         if not x.sdh and not x.forced
                     ):
                         non_sdh_sub = deepcopy(subtitle)

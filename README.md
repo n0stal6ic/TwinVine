@@ -50,7 +50,7 @@ uv run envied --help
 ```
 **Configuration**
 
-Run this line inside the VineFeeder folder:
+Run this line inside the TwinVine folder:
 ```
 cp packages/envied/src/envied/envied-working-example.yaml packages/envied/src/envied/envied.yaml 
 ```

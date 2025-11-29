@@ -35,6 +35,8 @@ pip install uv
 or
 
 python3 -m pip install uv
+
+or use your system's package manager to install python-uv
 ```
 
 Then install TwinVine; the following installs the latest version directly from the GitHub repository:

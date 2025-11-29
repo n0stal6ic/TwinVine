@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import re
@@ -12,14 +11,14 @@ import click
 from click import Context
 from requests import Request
 
-#from envied.core.downloaders import n_m3u8dl_re
-from envied.core.credential import Credential
-from envied.core.manifests import HLS
-from envied.core.search_result import SearchResult
-from envied.core.service import Service
-from envied.core.titles import Episode, Movie, Movies, Series
-from envied.core.tracks import Chapter, Chapters, Tracks, Video
-from envied.core.utils.collections import as_list
+from unshackle.core.downloaders import n_m3u8dl_re
+from unshackle.core.credential import Credential
+from unshackle.core.manifests import HLS
+from unshackle.core.search_result import SearchResult
+from unshackle.core.service import Service
+from unshackle.core.titles import Episode, Movie, Movies, Series
+from unshackle.core.tracks import Chapters, Tracks, Video, Hybrid
+from unshackle.core.utils.collections import as_list
 
 from . import queries
 
@@ -57,30 +56,42 @@ class DSNP(Service):
     @staticmethod
     @click.command(name="DSNP", short_help="https://www.disneyplus.com", help=__doc__)
     @click.argument("title", type=str)
+    @click.option(
+        "-m", "--movie", is_flag=True, default=False, help="Title is a Movie."
+    )
     @click.pass_context
     def cli(ctx: Context, **kwargs: Any) -> DSNP:
         return DSNP(ctx, **kwargs)
 
-    def __init__(self, ctx: Context, title: str):
+    def __init__(self, ctx: Context, title: str, movie):
         self.title = title
+        self.movie = movie
         super().__init__(ctx)
         self.cdm = ctx.obj.cdm
-        self.playback_data = {}
 
         vcodec = ctx.parent.params.get("vcodec")
         range = ctx.parent.params.get("range_")
 
         self.range = range[0].name if range else "SDR"
-        self.vcodec = "H265" if vcodec and vcodec == Video.Codec.HEVC else "H264"
-        if self.range != "SDR" and self.vcodec != "H265":
-            self.vcodec = "H265"
+        self.vcodec = "H.265" if vcodec and vcodec == Video.Codec.HEVC else "H.264"
+        if self.range != "SDR" and self.vcodec != "H.265":
+            self.vcodec = "H.265"
 
     def authenticate(self, cookies: Optional[CookieJar] = None, credential: Optional[Credential] = None) -> None:
         super().authenticate(cookies, credential)
         if not credential:
             raise EnvironmentError("Service requires Credentials for Authentication.")
 
-        self.session.headers.update(self.config["HEADERS"])
+        # Use exact headers from working Vinetrimmer implementation to avoid geoblocking
+        self.session.headers.update({
+            "Accept-Language": "en-US,en;q=0.5",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            "Origin": "https://www.disneyplus.com",
+            "x-bamsdk-platform": "javascript/windows/chrome",
+            "x-bamsdk-version": "28.0",
+            "x-bamsdk-client-id": "disney-svod",
+            "Accept-Encoding": "gzip",
+        })
         self.session.headers.update({"x-bamsdk-transaction-id": str(uuid.uuid4())})
         self.prd_config = self.session.get(self.config["CONFIG_URL"]).json()
 
@@ -155,262 +166,252 @@ class DSNP(Service):
             )
 
     def get_titles(self) -> Union[Movies, Series]:
-        if not self.title.startswith("entity"):
-            raise ValueError("Invalid input - Use only entity IDs.")
+        # Use Vinetrimmer logic - handle both entity IDs and other formats
+        if not "entity" in self.title:
+            # Convert to entity ID like Vinetrimmer does
+            try:
+                deeplinkId_response = self.session.get(
+                    url='https://disney.api.edge.bamgrid.com/explore/v1.3/deeplink',
+                    params={
+                        'refId': self.title,
+                        'refIdType': 'encodedFamilyId'  # Try movie first
+                    }
+                )
+                if deeplinkId_response.status_code == 200:
+                    deeplinkId = deeplinkId_response.json()
+                    self.title = deeplinkId["data"]["deeplink"]["actions"][0]["deeplinkId"]
+                else:
+                    # Try with encodedSeriesId
+                    deeplinkId_response = self.session.get(
+                        url='https://disney.api.edge.bamgrid.com/explore/v1.3/deeplink',
+                        params={
+                            'refId': self.title,
+                            'refIdType': 'encodedSeriesId'
+                        }
+                    )
+                    if deeplinkId_response.status_code == 200:
+                        deeplinkId = deeplinkId_response.json()
+                        self.title = deeplinkId["data"]["deeplink"]["actions"][0]["deeplinkId"]
+            except Exception:
+                # If all fails, assume it's already an entity ID
+                pass
 
         content = self.get_deeplink(self.title)
-        _type = content["data"]["deeplink"]["actions"][0]["contentType"]
+        
+        # Handle deeplink response structure - determine if series or movie from infoBlock
+        if "data" in content and "deeplink" in content["data"]:
+            actions = content["data"]["deeplink"]["actions"]
+            if actions and len(actions) > 0:
+                action = actions[0]
+                # Check the infoBlock to determine content type like Vinetrimmer does
+                info_block = action.get("infoBlock", "")
+                if "urn:ds:cmp:eva:series" in info_block:
+                    _type = "series"
+                elif "urn:ds:cmp:eva:movie" in info_block or "urn:ds:cmp:eva:film" in info_block:
+                    _type = "movie"
+                else:
+                    # Fallback: assume series for browse type
+                    _type = "series" if action.get("type") == "browse" else "movie"
+            else:
+                raise ValueError("No actions found in deeplink response")
+        else:
+            raise ValueError("Invalid deeplink response structure")
 
-        if _type == "movie":
+        if _type == "movie" or self.movie:
             movie = self._movie(self.title)
             return Movies(movie)
 
         elif _type == "series":
             episodes = self._show(self.title)
             return Series(episodes)
+        
+        else:
+            raise ValueError(f"Unknown content type: {_type}")
 
     def get_tracks(self, title: Union[Movie, Episode]) -> Tracks:
         resource_id = title.data.get("resourceId")
-        content_id = title.data["partnerFeed"].get("dmcContentId")
-        content = self.get_video(content_id)
-        playback = content["video"]["mediaMetadata"]["playbackUrls"][0]["href"]
-
-        token = self._refresh()
-
-        headers = {
-            "accept": "application/vnd.media-service+json; version=5",
-            "authorization": token,
-            "x-dss-feature-filtering": "true",
-        }
-
-        payload = {
-            "playbackId": resource_id,
-            "playback": {
-                "attributes": {
-                    "codecs": {
-                        "supportsMultiCodecMaster": False,
+    
+        # ===============================
+        # TOKEN REFRESH
+        # ===============================
+        if self._cache:
+            refresh_token = self._cache.data["token"]["refreshToken"]
+            fresh_token = self.refresh_token(refresh_token)
+            self._cache.set(fresh_token, expiration=fresh_token["token"]["expiresIn"] - 30)
+    
+            # Update session header
+            token = fresh_token["token"]["accessToken"]
+            self.session.headers.update({"Authorization": f"Bearer {token}"})
+    
+        # ===============================
+        # INTERNAL MANIFEST FETCHER
+        # ===============================
+        def get_manifest_for_scenario(scenario_name, quality=None):
+            original_headers = dict(self.session.headers)
+    
+            # Vinetrimmer-style headers
+            self.session.headers.update({
+                'x-dss-feature-filtering': 'true',
+                'x-application-version': '1.1.2',
+                'x-bamsdk-client-id': 'disney-svod',
+                'x-bamsdk-platform': 'javascript/windows/chrome',
+                'x-bamsdk-version': '28.0'
+            })
+    
+            # Default resolution (Vinetrimmer-style)
+            if quality is None:
+                quality = '1280' if hasattr(self, 'cdm') and self.cdm.security_level == 3 else '1920'
+    
+            json_data = {
+                'playback': {
+                    'attributes': {
+                        'resolution': {
+                            'max': [quality],
+                        },
+                        'protocol': 'HTTPS',
+                        'assetInsertionStrategy': 'SGAI',
+                        'playbackInitiationContext': 'ONLINE',
+                        'frameRates': [60],
                     },
-                    "protocol": "HTTPS",
-                    # "ads": "",
-                    "frameRates": [60],
-                    "assetInsertionStrategy": "SGAI",
-                    "playbackInitializationContext": "ONLINE",
                 },
-            },
-        }
-
-        video_ranges = []
-        audio_types = []
-
-        audio_types.append("ATMOS")
-        audio_types.append("DTS_X")
-
-        if not self.cdm.security_level == 3 and self.range == "DV":
-            video_ranges.append("DOLBY_VISION")
-
-        if not self.cdm.security_level == 3 and self.range == "HDR10":
-            video_ranges.append("HDR10")
-
-        if self.vcodec == "H265":
-            payload["playback"]["attributes"]["codecs"] = {"video": ["h264", "h265"]}
-
-        if audio_types:
-            payload["playback"]["attributes"]["audioTypes"] = audio_types
-
-        if video_ranges:
-            payload["playback"]["attributes"]["videoRanges"] = video_ranges
-
-        if self.cdm.security_level == 3:
-            payload["playback"]["attributes"]["resolution"] = {"max": ["1280x720"]}
-
-        scenario = "ctr-regular" if self.cdm.security_level == 3 else "ctr-high"
-        endpoint = playback.format(scenario=scenario)
-
-        res = self._request("POST", endpoint, payload=payload, headers=headers)
-        self.playback_data[title.id] = self._request(
-            "POST", f"https://disney.playback.edge.bamgrid.com/v7/playback/{scenario}", payload=payload, headers=headers
-        )
-
-        manifest = res["stream"]["complete"][0]["url"]
-
-        tracks = HLS.from_url(url=manifest, session=self.session).to_tracks(language=title.language)
+                'playbackId': resource_id,
+            }
+    
+            try:
+                res = self.session.post(
+                    f'https://disney.playback.edge.bamgrid.com/v7/playback/{scenario_name}',
+                    json=json_data
+                )
+                if res.status_code == 200:
+                    data = res.json()
+                    manifest_url = data["stream"]["sources"][0]['complete']['url']
+                    return HLS.from_url(url=manifest_url, session=self.session).to_tracks(language="en-US")
+                return None
+            finally:
+                self.session.headers.clear()
+                self.session.headers.update(original_headers)
+    
+        # ==========================================================
+        # =============== HYBRID RANGE (DV + HDR10) =================
+        # ==========================================================
+        if self.range == "HYBRID":
+            self.log.info("HYBRID mode — fetching HDR10 + DV manifests")
+    
+            all_tracks = Tracks()
+    
+            # -------- Fetch HDR10 ------------
+            self.log.info("Fetching HDR10 tracks")
+            self.range = Video.Range.HDR10
+            hdr_scenario = 'tv-drm-cbcs-h265-hdr10'
+            hdr_tracks = get_manifest_for_scenario(hdr_scenario, '2160')
+            if hdr_tracks:
+                all_tracks.add(hdr_tracks, warn_only=True)
+    
+            # -------- Fetch DV ---------------
+            self.log.info("Fetching DV tracks")
+            self.range = Video.Range.DV
+            dv_scenario = 'tv-drm-cbcs-h265-dovi'
+            dv_tracks = get_manifest_for_scenario(dv_scenario, '2160')
+            if dv_tracks:
+                all_tracks.add(dv_tracks, warn_only=True)
+    
+            # Restore range
+            self.range = "HYBRID"
+    
+            tracks = all_tracks
+            self.log.info("HYBRID fetch complete — merge will occur after download")
+    
+        # ==========================================================
+        # =============== NON-HYBRID MODES =========================
+        # ==========================================================
+        else:
+            if self.vcodec == "H.265" and self.range == 'HDR10':
+                scenario = 'tv-drm-cbcs-h265-hdr10'
+                quality = '2160'
+            elif self.vcodec == "H.265" and self.range == 'DV':
+                scenario = 'tv-drm-cbcs-h265-dovi'
+                quality = '2160'
+            else:
+                scenario = 'tv-drm-cbcs'
+                quality = '1920'
+    
+            tracks = get_manifest_for_scenario(scenario, quality)
+            if not tracks:
+                raise ValueError("Failed to fetch DSNP manifest")
+    
+        # =====================================================
+        # Fetch ATMOS/H265 secondary manifest (like Vinetrimmer)
+        # =====================================================
+        atmos_tracks = get_manifest_for_scenario('tv-drm-ctr-h265-atmos')
+        if atmos_tracks:
+            tracks.videos.extend(atmos_tracks.videos)
+            tracks.audio.extend(atmos_tracks.audio)
+            tracks.subtitles.extend(atmos_tracks.subtitles)
+    
+        # =====================================================
+        # AUDIO BITRATE FIX
+        # =====================================================
         for audio in tracks.audio:
             bitrate = re.search(
                 r"(?<=r/composite_)\d+|\d+(?=_complete.m3u8)",
                 as_list(audio.url)[0],
             )
             audio.bitrate = int(bitrate.group()) * 1000
-            if audio.bitrate == 1000_000:
-                # DSNP lies about the Atmos bitrate
+            if audio.bitrate == 1000_000:  # DSNP lies about Atmos
                 audio.bitrate = 768_000
-
+    
+        # =====================================================
+        # FINAL CONFIG
+        # =====================================================
         for track in tracks:
             if track not in tracks.attachments:
-                track.downloader = "N_m3u8DL-RE"
+                track.downloader = n_m3u8dl_re
                 track.needs_repack = True
-
+    
         return tracks
 
     def get_chapters(self, title: Union[Movie, Episode]) -> Chapters:
-        """
-        Extract chapter information from the title data if available.
-        Returns chapter markers for intro, credits, and scenes.
-        """
-        chapters = Chapters()
+        return Chapters()
 
-        try:
-            # First try to get chapters from the new API via playback data
-            if title.id in self.playback_data and "stream" in self.playback_data[title.id]:
-                playback_res = self.playback_data[title.id]
+    def get_widevine_service_certificate(self, **_: Any) -> str:
+        return None
 
-                # Check for editorial markers in playback data
-                if "editorial" in playback_res.get("stream", {}):
-                    editorial = playback_res["stream"]["editorial"]
-
-                    # Add "Start" chapter if not already present
-                    if not any(item.get("offsetMillis") == 0 for item in editorial):
-                        chapters.add(Chapter(timestamp=0, name="Start"))
-
-                    # Map editorial labels to chapter names
-                    mapping = {
-                        "recap_start": "Recap",
-                        "FFER": "Recap",  # First Frame Episode Recap
-                        "recap_end": "Scene",
-                        "LFER": "Scene",  # Last Frame Episode Recap
-                        "intro_start": "Title Sequence",
-                        "intro_end": "Scene",
-                        "FFEI": "Title Sequence",  # First Frame Episode Intro
-                        "LFEI": "Scene",  # Last Frame Episode Intro
-                        "FFCB": None,  # First Frame Credits Bumper
-                        "LFCB": "Scene",  # Last Frame Credits Bumper
-                        "FFEC": "End Credits",  # First Frame End Credits
-                        "LFEC": None,  # Last Frame End Credits
-                        "up_next": None,
-                    }
-
-                    # Sort by timestamp to ensure proper scene numbering
-                    editorial.sort(key=lambda x: x.get("offsetMillis", 0))
-
-                    # Track chapters we've already added by timestamp to avoid duplicates
-                    seen_timestamps = set()
-                    scene_count = 0
-
-                    for marker in editorial:
-                        if "label" in marker and "offsetMillis" in marker:
-                            timestamp = marker["offsetMillis"]
-                            name = mapping.get(marker["label"])
-
-                            # Skip if no mapping or already processed timestamp
-                            if not name or timestamp in seen_timestamps:
-                                continue
-
-                            # Mark this timestamp as seen
-                            seen_timestamps.add(timestamp)
-
-                            if name == "Scene":
-                                scene_count += 1
-                                name = f"Scene {scene_count}"
-
-                            chapters.add(Chapter(timestamp=timestamp, name=name))
-
-                    # If we found chapters in the playback data, return them
-                    if chapters:
-                        return chapters
-
-            # If no chapters found in playback data, try the original method
-            content_id = title.data["partnerFeed"].get("dmcContentId")
-            content = self.get_video(content_id)
-
-            # Check for chapter/milestone data
-            video_info = content.get("video", {}).get("milestone", {})
-
-            if not video_info:
-                return chapters
-
-            # Mapping of milestone types to chapter names
-            mapping = {
-                "recap_start": "Recap",
-                "recap_end": "Scene",
-                "intro_start": "Title Sequence",
-                "intro_end": "Scene",
-                "FFEI": "Title Sequence",  # First Frame Episode Intro
-                "LFEI": "Scene",  # Last Frame Episode Intro
-                "FFCB": None,  # First Frame Credits Bumper
-                "LFCB": "Scene",  # Last Frame Credits Bumper
-                "FFEC": "End Credits",  # First Frame End Credits
-                "LFEC": None,  # Last Frame End Credits
-                "up_next": None,
-            }
-
-            # Flatten the milestone data and sort by start time
-            flattened = []
-            for chapter_type, items in video_info.items():
-                for entry in items:
-                    if "milestoneTime" in entry and entry["milestoneTime"]:
-                        start = entry["milestoneTime"][0]["startMillis"]
-                        flattened.append({"type": chapter_type, "start": start})
-
-            flattened.sort(key=lambda x: x["start"])
-
-            # Create chapters
-            chapter_list = []
-            scene_count = 0
-            for f in flattened:
-                name = mapping.get(f["type"])
-                if not name:
-                    continue
-
-                if name == "Scene":
-                    scene_count += 1
-                    name = f"Scene {scene_count}"
-
-                chapter_list.append(Chapter(timestamp=f["start"], name=name))
-
-            # Add a "Start" chapter at 0 if we have end credits
-            if "FFEC" in video_info and not any(ch.timestamp == 0 for ch in chapter_list):
-                chapter_list.insert(0, Chapter(timestamp=0, name="Start"))
-
-            # Remove duplicates (same time and name)
-            prev_time, prev_name = None, None
-
-            for ch in chapter_list:
-                # Convert timestamp to milliseconds for comparison
-                if isinstance(ch.timestamp, str):
-                    ts_parts = ch.timestamp.split(":")
-                    hour, minute, second = int(ts_parts[0]), int(ts_parts[1]), float(ts_parts[2])
-                    ts_ms = (hour * 3600 + minute * 60 + second) * 1000
-                else:
-                    ts_ms = ch.timestamp
-
-                if prev_time is None or (ts_ms != prev_time and ch.name != prev_name):
-                    chapters.add(ch)
-                    prev_time, prev_name = ts_ms, ch.name
-
-            return chapters
-
-        except Exception as e:
-            self.log.warning(f"Failed to extract chapters: {e}")
-            return chapters
-
-    def get_playready_license(self, *, challenge: bytes, title, track) -> bytes:
+    def get_widevine_license(self, *, challenge: bytes, title, track) -> bytes:
+        """Get Widevine license for Disney+ content - Adapted from working Vinetrimmer implementation"""
+        # Force token refresh like Vinetrimmer does for license calls
+        if self._cache:
+            refresh_token = self._cache.data["token"]["refreshToken"]
+            fresh_token = self.refresh_token(refresh_token)
+            self._cache.set(fresh_token, expiration=fresh_token["token"]["expiresIn"] - 30)
+            token = fresh_token["token"]["accessToken"]
+        else:
+            return None
+            
         headers = {
-            "Authorization": f"Bearer {self._cache.data['token']['accessToken']}",
-            "Content-Type": "application/octet-stream",
-        }
-        r = self.session.post(url=self.config["PLAYREADY_LICENSE"], headers=headers, data=challenge)
-        if r.status_code != 200:
-            raise ConnectionError(r.text)
-        return r.content
-
-    def get_widevine_license(self, *, challenge: bytes, title, track) -> None:
-        headers = {
-            "Authorization": f"Bearer {self._cache.data['token']['accessToken']}",
+            "Authorization": f'Bearer {token}',
             "Content-Type": "application/octet-stream",
         }
         r = self.session.post(url=self.config["LICENSE"], headers=headers, data=challenge)
         if r.status_code != 200:
             raise ConnectionError(r.text)
         return r.content
+
+    def get_playready_license(self, *, challenge: bytes, title, track) -> Optional[bytes]:
+        """Get PlayReady license for Disney+ content - Adapted from working Vinetrimmer implementation"""
+        # Refresh token if needed  
+        token = self._cache.data["token"]["accessToken"] if self._cache else None
+        if not token:
+            return None
+            
+        r = self.session.post(
+            url='https://disney.playback.edge.bamgrid.com/playready/v1/obtain-license.asmx',
+            headers={'authorization': f'Bearer {token}'},
+            data=challenge
+        )
+        
+        if r.status_code != 200:
+            raise ConnectionError(r.text)
+        return r.text.encode()
 
     # Service specific functions
 
@@ -421,13 +422,16 @@ class DSNP(Service):
 
         episodes = []
         for season in season_ids:
-            endpoint = self.href(
-                self.prd_config["services"]["explore"]["client"]["endpoints"]["getSeason"]["href"],
-                version=self.config["EXPLORE_VERSION"],
-                seasonId=season,
-            )
-            data = self.session.get(endpoint, params={'limit': 999}).json()["data"]["season"]["items"]
-            episodes.extend(data)
+            # Use direct Disney+ API URL like Vinetrimmer does
+            endpoint = f'https://disney.api.edge.bamgrid.com/explore/v1.3/season/{season}'
+            params = {'limit': 80}
+            
+            response = self.session.get(endpoint, params=params)
+            if response.status_code == 200:
+                data = response.json()["data"]["season"]["items"]
+                episodes.extend(data)
+            else:
+                self.log.warning(f"Failed to get season {season}: {response.status_code}")
 
         return [
             Episode(
@@ -438,7 +442,6 @@ class DSNP(Service):
                 season=int(episode["visuals"].get("seasonNumber", 0)),
                 number=int(episode["visuals"].get("episodeNumber", 0)),
                 name=episode["visuals"].get("episodeTitle"),
-                language=self.get_original_lang(next(x for x in episode["actions"] if x.get("type") == "playback").get("availId")),
                 data=next(x for x in episode["actions"] if x.get("type") == "playback"),
             )
             for episode in episodes
@@ -448,27 +451,15 @@ class DSNP(Service):
     def _movie(self, title: str) -> Movie:
         movie = self.get_page(title)
 
-        playback_action = next(x for x in movie["actions"] if x.get("type") == "playback")
-        original_lang = self.get_original_lang(playback_action.get("availId"))
-
         return [
             Movie(
                 id_=movie.get("id"),
                 service=self.__class__,
                 name=movie["visuals"].get("title"),
                 year=movie["visuals"]["metastringParts"].get("releaseYearRange", {}).get("startYear"),
-                language=original_lang,
-                data=playback_action,
+                data=next(x for x in movie["actions"] if x.get("type") == "playback"),
             )
         ]
-
-    def get_original_lang(self, availId):
-        try:
-            title_lang = self.session.get(f'https://disney.api.edge.bamgrid.com/explore/v1.6/playerExperience/{availId}').json()
-            original_lang = title_lang["data"]["playerExperience"]["targetLanguage"]
-        except Exception:
-            original_lang = "en"
-        return original_lang
 
     def _request(
         self,
@@ -478,14 +469,18 @@ class DSNP(Service):
         headers: dict = None,
         payload: dict = None,
     ) -> Any[dict | str]:
-        _headers = {**self.session.headers, **(headers or {})}
-
+        _headers = headers if headers else self.session.headers
         prep = self.session.prepare_request(Request(method, endpoint, headers=_headers, params=params, json=payload))
         response = self.session.send(prep)
-
+        
+        # Check for geoblocking
+        if response.status_code == 404 and 'x-dss-edge' in response.headers:
+            edge_error = response.headers.get('x-dss-edge', '')
+            if 'location.invalid' in edge_error:
+                raise ConnectionError("Disney+ content is geoblocked in your region. Please use a VPN to US/supported region.")
+        
         try:
             data = response.json()
-
             if data.get("errors"):
                 code = data["errors"][0]["extensions"].get("code")
 
@@ -495,38 +490,111 @@ class DSNP(Service):
                     raise ConnectionError("Bad Credentials: " + code)
                 else:
                     raise ConnectionError(data["errors"])
-
             return data
 
-        except Exception:
-            raise ConnectionError("Request failed: {}".format(response.content))
+        except Exception as e:
+            if response.status_code == 404:
+                raise ConnectionError(f"Disney+ content not found or geoblocked. Status: {response.status_code}")
+            raise ConnectionError(f"Request failed. Status: {response.status_code}, Content: {response.content}")
 
     def get_page(self, title):
+        # Use direct Disney+ API URL like Vinetrimmer does - no need for SDK endpoints
         params = {
-            "disableSmartFocus": "true",
-            "limit": 999,
-            "enhancedContainersLimit": 0,
+            "disableSmartFocus": True,
+            "enhancedContainersLimit": 12,
+            "limit": 24,
         }
-        endpoint = self.href(
-            self.prd_config["services"]["explore"]["client"]["endpoints"]["getPage"]["href"],
-            version=self.config["EXPLORE_VERSION"],
-            pageId=title,
-        )
-        return self._request("GET", endpoint, params=params)["data"]["page"]
+        
+        # Use exact Vinetrimmer URL pattern
+        endpoint = f'https://disney.api.edge.bamgrid.com/explore/v1.4/page/{title}'
+        
+        response = self.session.get(endpoint, params=params)
+        if response.status_code == 200:
+            return response.json()["data"]["page"]
+        else:
+            raise ConnectionError(f"Failed to get page data. Status: {response.status_code}")
 
     def get_video(self, content_id: str) -> dict:
-        endpoint = self.href(
-            self.prd_config["services"]["content"]["client"]["endpoints"]["getDmcVideo"]["href"], contentId=content_id
-        )
-        return self._request("GET", endpoint)["data"]["DmcVideo"]
+        # Use Vinetrimmer's approach - get manifest directly using playback API
+        # Add special headers like Vinetrimmer does to avoid geoblocking
+        original_headers = dict(self.session.headers)
+        self.session.headers.update({
+            'x-dss-feature-filtering': 'true',
+            'x-application-version': '1.1.2',
+            'x-bamsdk-client-id': 'disney-svod',
+            'x-bamsdk-platform': 'javascript/windows/chrome',
+            'x-bamsdk-version': '28.0'
+        })
+        
+        try:
+            # Use playback API like Vinetrimmer with exact configuration
+            # Use exact Vinetrimmer configuration - L3 CAN get 1080p if done correctly
+            json_data = {
+                'playback': {
+                    'attributes': {
+                        'resolution': {
+                            'max': ['1920'],  # Same as Vinetrimmer - no artificial L3 limitation
+                        },
+                        'protocol': 'HTTPS',
+                        'assetInsertionStrategy': 'SGAI',
+                        'playbackInitiationContext': 'ONLINE',
+                        'frameRates': [60],
+                    },
+                },
+                'playbackId': content_id,
+            }
+
+            # Use exact Vinetrimmer playback URL and scenario
+            manifest_response = self.session.post(
+                'https://disney.playback.edge.bamgrid.com/v7/playback/tv-drm-ctr', 
+                json=json_data
+            )
+            
+            if manifest_response.status_code == 200:
+                manifest_data = manifest_response.json()
+                # Return in expected format
+                return {
+                    "video": {
+                        "mediaMetadata": {
+                            "playbackUrls": [{"url": manifest_data["stream"]["sources"][0]['complete']['url']}]
+                        }
+                    }
+                }
+            else:
+                # Fallback: try original method but with new headers
+                endpoint = self.href(
+                    self.prd_config["services"]["content"]["client"]["endpoints"]["getDmcVideo"]["href"], 
+                    contentId=content_id
+                )
+                data = self._request("GET", endpoint)["data"]["DmcVideo"]
+                return data
+        except Exception as e:
+            # Final fallback
+            endpoint = self.href(
+                self.prd_config["services"]["content"]["client"]["endpoints"]["getDmcVideo"]["href"], 
+                contentId=content_id
+            )
+            data = self._request("GET", endpoint)["data"]["DmcVideo"]
+            return data
+                
+        finally:
+            # Restore original headers
+            self.session.headers.clear()
+            self.session.headers.update(original_headers)
 
     def get_deeplink(self, ref_id: str) -> str:
+        # Use direct Disney+ API URL like Vinetrimmer does
         params = {
             "refId": ref_id,
             "refIdType": "deeplinkId",
         }
-        endpoint = "https://disney.content.edge.bamgrid.com/explore/v1.0/deeplink"
-        return self._request("GET", endpoint, params=params)
+        endpoint = "https://disney.api.edge.bamgrid.com/explore/v1.3/deeplink"
+        
+        response = self.session.get(endpoint, params=params)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise ConnectionError(f"Failed to get deeplink. Status: {response.status_code}")
 
     def series_bundle(self, series_id: str) -> dict:
         endpoint = self.href(
@@ -563,14 +631,14 @@ class DSNP(Service):
         payload = {
             "variables": {
                 "registerDevice": {
-                    "applicationRuntime": self.config["APPLICATION_RUNTIME"],
+                    "applicationRuntime": self.config.get("BAM_APPLICATION_RUNTIME", "android"),
                     "attributes": {
                         "operatingSystem": "Android",
                         "operatingSystemVersion": "8.1.0",
                     },
-                    "deviceFamily": self.config["DEVICE_FAMILY"],
+                    "deviceFamily": self.config.get("BAM_FAMILY", "browser"),  # Use Vinetrimmer family
                     "deviceLanguage": "en",
-                    "deviceProfile": self.config["DEVICE_PROFILE"],
+                    "deviceProfile": self.config.get("BAM_PROFILE", "tv"),
                 }
             },
             "query": queries.REGISTER_DEVICE,
@@ -655,3 +723,5 @@ class DSNP(Service):
         endpoint = self.prd_config["services"]["orchestration"]["client"]["endpoints"]["query"]["href"]
         data = self._request("POST", endpoint, payload=payload)
         return data["extensions"]["sdk"]
+
+

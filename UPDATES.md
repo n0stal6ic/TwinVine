@@ -1,4 +1,8 @@
 **Updates**
+**29 Nov 2025**
+- Followed upstream changes to envied V2.1.0 
+- Updated some services
+- removed incorrectly duplicated vaults folder within src/envied/
 
 **13 Sept 2025:**
 - Added selected service name to screen display with GUI use. Featured in the original but got lost!

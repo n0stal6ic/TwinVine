@@ -63,7 +63,7 @@ def main(version: bool, debug: bool) -> None:
         expand=True,
     ),
     justify="center",
-)
+    )
 
 
 @atexit.register

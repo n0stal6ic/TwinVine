@@ -11,14 +11,14 @@ import click
 from click import Context
 from requests import Request
 
-from unshackle.core.downloaders import n_m3u8dl_re
-from unshackle.core.credential import Credential
-from unshackle.core.manifests import HLS
-from unshackle.core.search_result import SearchResult
-from unshackle.core.service import Service
-from unshackle.core.titles import Episode, Movie, Movies, Series
-from unshackle.core.tracks import Chapters, Tracks, Video, Hybrid
-from unshackle.core.utils.collections import as_list
+from envied.core.downloaders import n_m3u8dl_re
+from envied.core.credential import Credential
+from envied.core.manifests import HLS
+from envied.core.search_result import SearchResult
+from envied.core.service import Service
+from envied.core.titles import Episode, Movie, Movies, Series
+from envied.core.tracks import Chapters, Tracks, Video, Hybrid
+from envied.core.utils.collections import as_list
 
 from . import queries
 

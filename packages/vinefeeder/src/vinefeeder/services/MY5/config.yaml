@@ -1,6 +1,7 @@
 service: MY5
 
-options: 
+options: -S
+
 
 media_dict:
   Films: https://corona.channel5.com/shows/search.json?platform=my5desktop&friendly=1&vod_subgenres%5B%5D=6100117389032&vod_subgenres%5B%5D=6100117390032&vod_subgenres%5B%5D=6100117391032

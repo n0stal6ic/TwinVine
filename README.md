@@ -24,7 +24,7 @@ uv run vinefeeder  - to open the interactive GUI for search, browse, etc.
 
 To go to the command line use of 'envied' after using the GUI: close the GUI directly, or ctrl+c in terminal.
 ```
-**Installation**
+**Installation** - with binaries already installed
 
 Uv is the package manager and loads both VineFeeder and Envied together.  Envied runs independenly or may be called by Vinefeeder.
 
@@ -50,6 +50,67 @@ uv sync
 uv run vinefeeder --help or
 uv run envied --help
 ```
+**Installation** with a bare machine.
+
+Find and install git:
+* Windows:
+	download https://github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-2.52.0-64-bit.exe  and run the installer
+* Linux: 
+	install from your OS' package manager.
+Find and install Python:
+* Windows:
+	search Windows Store for Python and select the latest version available 3.12 or above. 
+* Linux:
+	Python is probably already installed in basic form.
+	
+Find and install TwinVine
+* Windows or Linux: 
+	inside a command window (cmd -w  typed in start for windows or a terminal for Linux) 
+	```
+	git clone https://github.com/vinefeeder/TwinVine.git
+	```
+	A folder containing all the TwinVine files will be created. Close the command window but note the location of TwinVine.
+	
+Install all the required binary files and add to system variable - Path.
+
+* Windows
+	- Open Start
+	- Type PowerShell
+	- Right-click Windows PowerShell → Run as administrator
+	- Inside PowerShell change directory to TwinVine and run the following command
+
+
+	```
+	   powershell -ExecutionPolicy Bypass -File .\Install-media-tools.ps1
+	
+	```
+* Linux:
+	- Open a terminal window, cd to TwinVine and run
+	```
+		sudo bash Install-media-tools.sh
+	```
+* Windows:
+Once installation of all the binaries has finished close the PowerShell window with admininstrator privileges and open an ordinary PowerShell window. Change directory to Twinvine
+		
+	```
+	uv clean
+	uv lock
+	uv sync
+	uv run vinefeeder --help or
+	uv run envied --help
+	```
+* Linux:
+	- Once the binary install has finished navigate to TwinVine top level folder and run the following commands one by one to build the TwinVine system.
+	
+	```
+	uv clean
+	uv lock
+	uv sync
+	uv run vinefeeder --help or
+	uv run envied --help
+	```
+
+
 **Configuration**
 
 Run this line inside the TwinVine folder:

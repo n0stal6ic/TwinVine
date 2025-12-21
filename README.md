@@ -17,29 +17,31 @@ TwinVine is the easy way to handle your download tasks.
 
 
 **usage**
+	
+	
 ```
-uv run envied dl (options) (service) (program url)
-
-uv run vinefeeder  - to open the interactive GUI for search, browse, etc.
-
-To go to the command line use of 'envied' after using the GUI: close the GUI directly, or ctrl+c in terminal.
+	uv run envied dl (options) (service) (program url)
+	uv run vinefeeder  - to open the interactive GUI for search, browse, etc.
+	To go to the command line use of 'envied' after using the GUI: close the GUI directly, or ctrl+c in terminal.
 ```
-**Installation** - with binaries already installed
 
-Uv is the package manager and loads both VineFeeder and Envied together.  Envied runs independenly or may be called by Vinefeeder.
+	
+**Installation** - with binaries and python already installed
 
-If you do not alrealy have uv as a python package install it first, using pip -
+uv is the package manager and loads both VineFeeder and Envied together.  Envied runs independenly or may be called by Vinefeeder.
+
+If you do not alrealy have uv as a python package try to install it first, using pip -  
+
 ```
 pip install uv
-
 or
-
 python3 -m pip install uv
-
 or use your system's package manager to install python-uv
 ```
 
-Then install TwinVine; the following installs the latest version directly from the GitHub repository:
+Install TwinVine; 
+
+the following installs the latest version directly from the GitHub repository:
 
 ```shell
 git clone https://github.com/vinefeeder/TwinVine.git
@@ -50,74 +52,87 @@ uv sync
 uv run vinefeeder --help or
 uv run envied --help
 ```
-**Installation** with a bare machine.
 
-Find and install git:
-* Windows:
-	download https://github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-2.52.0-64-bit.exe  and run the installer
-* Linux: 
-	install from your OS' package manager.
-Find and install Python:
-* Windows:
-	search Windows Store for Python and select the latest version available 3.12 or above. 
-* Linux:
-	Python is probably already installed in basic form.
+**Installation for Windows** with a bare machine and novice user.
 	
-Find and install TwinVine
-* Windows or Linux: 
-	inside a command window (cmd -w  typed in start for windows or a terminal for Linux) 
-	```
-	git clone https://github.com/vinefeeder/TwinVine.git
-	```
-	A folder containing all the TwinVine files will be created. Close the command window but note the location of TwinVine.
-	
-Install all the required binary files and add to system variable - Path.
+You are going to install all the required binary files and automatically add then to system variable - Path.  The Python interpreter will be installed automatically too.
 
-* Windows
+
+	- download git from https://github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-2.52.0-64-bit.exe  and run the installer
+	- re-start your machine
+	- Open Start
+	- Type PowerShell and select open PowerShell
+	- Within PowerShell change directory, chdir, or cd, to your chosen location, where TwinVine is to be installed, and type the following command followed by enter,
+	
+		
+```
+git clone https://github.com/vinefeeder/TwinVine.git
+```
+
+	
+	- Files will be downloaded, a folder called TwinVine will be created.
+	- Close PowerShell and re-open with admininstrator privileges. Do...
 	- Open Start
 	- Type PowerShell
 	- Right-click Windows PowerShell → Run as administrator
-	- Inside PowerShell change directory to TwinVine and run the following command
-
-
-	```
-	   powershell -ExecutionPolicy Bypass -File .\Install-media-tools.ps1
+	- Inside PowerShell, change directory to TwinVine (cd TwinVine) and run the following command by copying or typing the line, followed by pressing enter.
 	
-	```
-* Linux:
-	- Open a terminal window, cd to TwinVine and run
-	```
-		sudo bash Install-media-tools.sh
-	```
-* Windows:
-Once installation of all the binaries has finished close the PowerShell window with admininstrator privileges and open an ordinary PowerShell window. Change directory to Twinvine
-		
-	```
-	uv clean
-	uv lock
-	uv sync
-	uv run vinefeeder --help or
-	uv run envied --help
-	```
-* Linux:
-	- Once the binary install has finished navigate to TwinVine top level folder and run the following commands one by one to build the TwinVine system.
 	
-	```
-	uv clean
+```
+ powershell -ExecutionPolicy Bypass -File .\Install-media-tools.ps1
+```
+
+	
+	- Watch the installation, a number of binary files will be downloaded and installed to C:\Tool\bin. Installation will take a while. After finishing, close PowerShell and restart your machine.
+	- Open Start
+	- Type PowerShell
+	- Type uv [return]. Expect to see a screen of help.  If uv did not install from the Install-media-tools.ps1 script you will not see any response. Uv is a python package manager.
+	- If uv is not installed close PowerShell and re-open as administrator, so 
+	- Open Start
+	- Type PowerShell
+	- Right-click Windows PowerShell → Run as administrator	
+	- Type powershell -ExecutionPolicy Bypass -c "irm https://github.com/astral-sh/uv/releases/download/0.9.18/uv-installer.ps1 | iex" [return]
+
+	- Close PowerShell and re-start your machine.
+	- Type [WindowsKey]+R to open PowerShell, 
+	- cd to TwinVine and type each line below followed by return. Some commands will take a while to finish.
+	  	
+```
 	uv lock
-	uv sync
-	uv run vinefeeder --help or
+	uv sync  
+	cp .\packages\envied\src\envied\envied-working-example.yaml .\packages\envied\src\envied\envied.yaml
+	uv run vinefeeder --help
 	uv run envied --help
-	```
-
-
-**Configuration**
-
-Run this line inside the TwinVine folder:
+	uv run envied dl -?
+	
 ```
-cp packages/envied/src/envied/envied-working-example.yaml packages/envied/src/envied/envied.yaml 
+That's it for Windows; uv run vinefeeder to get started!  
+
+**Installation for Linux** with a bare machine.
+
+There is an installation file to install binaries. Install-media-tools.sh. Open it in a text editor and edit lines 6 and 7. Change the Debian/Ubuntu package-manager command 'apt-get' to whatever your package manager uses (dnf, pacman, yast, etc)  
+Then save and close and run the script with 
 ```
-This ensures you have your own working copy of envied.yaml. It may be edited and will not be over-written during any updates.  
+sudo bash ./Install-media-tools.sh
+```
+The script will take some time to install. Check uv is installed.
+If not, you can install uv with the following command in a terminal window
+
+```
+wget -qO- https://astral.sh/uv/install.sh | sh
+```
+Finally, cd to TwinVine and run each command in order,
+
+```
+	uv lock
+	uv sync  
+	cp .\packages\envied\src\envied\envied-working-example.yaml .\packages\envied\src\envied\envied.yaml
+	uv run vinefeeder --help
+	uv run envied --help
+	uv run envied dl -?
+	
+```
+
   
 That's it; uv run vinefeeder to get started!  
 
@@ -143,27 +158,6 @@ These services have web-origins and not all have been tested by me.
     for details for confuring Envied download options on a service by service basis.
     TwinVine/packages/envied/README.md  links to wiki (unshackle - envied's parent)
 
-# Newbies
-If you are totally new to downloading there are software items that all downloaders call upon to carry out their functions. TwinVine is no different.
-
-You need to have some binaries installed and on your system's Path.
-For your security find them from source.
-
-They need to be on your system's Path, 
-For linux installng to  /home/user/.local/bin/   is ideal
-For Windows it is less clear cut.
-If you know how to create a folder and then add the folder to
-the Windows systems Environment Path, then do that and place all your binaries
-in the new folder.
-(I have cheated in the past and used C:\Windows\System32\)
-
-The binary list:
-* Python 3.11 or later installed with Linux: or Windows install from the Windows Store
-* ffmpeg (https://github.com/FFmpeg/FFmpeg) https://www.videohelp.com/software/ffmpeg  or Linux distro
-* N-m3u8DL-RE (https://github.com/nilaoda/N_m3u8DL-RE/releases)
-* mp4decrypt (https://github.com/axiomatic-systems/Bento4)
-* MKVMerge from MKVToolNix  https://mkvtoolnix.download/downloads.html  https://www.videohelp.com/software/MKVToolNix
-* Shaka-packager  https://github.com/shaka-project/shaka-packager/releases  rename the binary to shaka-packager
 
 
 Images

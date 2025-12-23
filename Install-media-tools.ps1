@@ -131,6 +131,25 @@ try {
     Select-Object -First 1 |
     ForEach-Object { Copy-Item -Force $_.FullName (Join-Path $BinDir "N_m3u8DL-RE.exe") }
 
+  '''# -----------------------------
+  # Install Git for Windows (64-bit)
+  # -----------------------------
+  $gitInstaller = Join-Path $WorkDir "Git-2.52.0-64-bit.exe"
+  Download-File `
+    "https://github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-2.52.0-64-bit.exe" `
+    $gitInstaller
+
+  # Silent install (NSIS): /S = silent
+  Start-Process -FilePath $gitInstaller -ArgumentList "/S" -Wait
+
+  # Add the typical Git cmd folder to MACHINE PATH if present
+  $gitDefaultPath = "C:\Program Files\Git\cmd"
+  if (Test-Path $gitDefaultPath) {
+    Add-ToMachinePath $gitDefaultPath
+  } else {
+    Write-Host "Git installed, but default path not found: $gitDefaultPath (maybe different install location)"
+  }'''
+
   # -----------------------------
   # Install Shaka Packager (Windows x64)
   # -----------------------------

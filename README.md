@@ -136,6 +136,14 @@ Finally, cd to TwinVine and run each command in order,
   
 That's it; uv run vinefeeder to get started!  
 
+**Locations**
+
+As configured your files will be downloaded to TwinVine/packages/envied/src/downloads/  
+The envied.yaml can be edited for the download location - use a full path, on  windows with forward slashes C:/Users/Downloads and Linux /home/user/Downloads, for example.
+Cookies: As configured the Cookies folder is in packages/envied/src/. Each cookie file - type .txt should be names exactly as the service eg DNSP.txt and you personal login cookie placed inside.
+WVDs: A CDM - called device.wvd is located at TwinVine/WVDs 
+Vaults:  No local vaults are configured but a remote vault is used for caching and fetching. Often times you will see DRMLab s the source of the license key -saving unnecessary requests to a license server.
+
 **Linux**
 
 Linux systems are known to screen freeze after envied has finished a download.

@@ -1,6 +1,6 @@
 service: MY5
 
-options: -S
+options: 
 
 
 media_dict:

@@ -910,18 +910,19 @@ class dl:
         # use --select-titles after dl in unshackle command
         
         Config.transient = True
+        # thanks CodeName393 for suggestion to use episode name and full SXXExx format
         if select_titles and type(titles)==Series:
-            console.print(Padding(Rule(f"[rule.text]\nSelect Titles Option\n")))
-
+            console.print(Padding(Rule(f"[rule.text]\nSelect Titles Option\n"), (1, 2)))
             
             beaupy_titles = [
-                f"{i+1} {t.title}, {t.season}, {t.number}"
+                f"{i+1}. {t.title} - S{t.season:02}E{t.number:02}"
+                + (f" - {t.name}" if t.name else "")
                 for i, t in enumerate(titles)
             ]
-            
+                        
             selected_idx = select_multiple(
                 beaupy_titles,
-                preprocessor=lambda val: f"[rgb(245,194,231)]{val}[/rgb(245,194,231)]",
+                preprocessor=lambda val: f"[rgb(205,214,244)]{val}[/rgb(205,214,244)]",
                 minimal_count=1,
                 page_size=8,
                 pagination=True,

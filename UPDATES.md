@@ -1,4 +1,12 @@
 **Updates**
+
+**31 Dec 2025**
+
+**Altered:**
+  - **Colour Render:** of --select-titles option title display
+  - **Display Ttiles:** for --select-titles option now include episode title and standard SxxExx designation
+
+
 **29 Nov 2025**
 - Followed upstream changes to envied V2.1.0 
 - Updated some services

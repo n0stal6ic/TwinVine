@@ -59,11 +59,10 @@ key_vaults:
 #- type: SQLite
 #  name: Local vault
 #  path: key_store.db
-# currently offline HTTPAPI
-#- type: HTTPAPI
-#  name: drmlab
-#  host: http://api.drmlab.io/vault/
-#  password: gEX75q7I5YVkvgF5SUkcNd41IbGrDtTT
+- type: HTTPAPI
+  name: drmlab
+  host: http://api.drmlab.io/vault/
+  password: gEX75q7I5YVkvgF5SUkcNd41IbGrDtTT
 
 
 

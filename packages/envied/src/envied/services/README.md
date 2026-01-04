@@ -3,8 +3,6 @@ A collection of non-premium services for envied.
 ## Usage:
 Clone repository:
 
-`git clone https://github.com/stabbedbybrick/services.git`
-
 Add folder to `envied.yaml`:
 
 ```

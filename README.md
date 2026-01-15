@@ -126,7 +126,7 @@ Finally, cd to TwinVine and run each command in order,
 ```
 	uv lock
 	uv sync  
-	cp .\packages\envied\src\envied\envied-working-example.yaml .\packages\envied\src\envied\envied.yaml
+	cp ./packages/envied/src/envied/envied-working-example.yaml ./packages/envied/src/envied/envied.yaml
 	uv run vinefeeder --help
 	uv run envied --help
 	uv run envied dl -?

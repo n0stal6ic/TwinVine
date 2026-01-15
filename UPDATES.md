@@ -1,5 +1,10 @@
 **Updates**
 
+**15 Jan 2026**
+- Upstream updates to envied to 2.2.0
+- Added back lost vaults folder!!
+- Reworked upper bounds of python library versions.
+
 **31 Dec 2025**
 
 **Altered:**

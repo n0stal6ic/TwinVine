@@ -9,13 +9,14 @@ dependencies = [
   "envied",         # resolved via [tool.uv.sources] at the workspace root
   "PyQt6",          # or  GUI toolkit(s)
   "rich",
+  "xmltodict>=1.0.2",
 ]
 
 [project.scripts]
 vinefeeder = "vinefeeder.__main__:main"  #  GUI entry point
 
 [build-system]
-requires = ["uv_build>=0.8.12,<0.9.0"]
+requires = ["uv_build>=0.8.12,<1.0.0"]
 build-backend = "uv_build"
 
 [tool.uv.package-data]

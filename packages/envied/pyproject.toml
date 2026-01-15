@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "envied"
-version = "1.4.8"
+version = "2.1.0"
 description = "Modular Movie, TV, and Music Archival Software."
 authors = [{ name = "rlaphoenix and others" }]
 requires-python = ">=3.10,<3.13"
@@ -26,50 +26,56 @@ classifiers = [
     "Topic :: Security :: Cryptography",
 ]
 dependencies = [
-    "appdirs>=1.4.4,<2",
-    "Brotli>=1.1.0,<2",
-    "click>=8.1.8,<9",
-    "construct>=2.8.8,<3",
-    "crccheck>=1.3.0,<2",
-    "fonttools>=4.60.1,<5",
-    "jsonpickle>=3.0.4,<4.5",
-    "langcodes>=3.4.0,<4",
-    "lxml>=6.0.2, <7",
-    "pproxy>=2.7.9,<3",
-    "protobuf>=4.25.3,<7",
-    "pycaption>=2.2.6,<3",
-    "pycryptodomex>=3.20.0,<4",
-    "pyjwt>=2.8.0,<3",
-    "pymediainfo>=6.1.0,<8",
-    "pymp4>=1.4.0,<2",
-    "pymysql>=1.1.0,<2",
-    "pywidevine[serve]>=1.8.0,<2",
-    "PyYAML>=6.0.1,<7",
-    "requests[socks]>=2.31.0,<3",
-    "rich>=13.7.1,<15",
-    "rlaphoenix.m3u8>=3.4.0,<4",
-    "ruamel.yaml>=0.18.6,<0.19",
-    "sortedcontainers>=2.4.0,<3",
-    "subtitle-filter>=1.4.9,<2",
-    "Unidecode>=1.3.8,<2",
-    "urllib3>=2.2.1,<3",
-    "chardet>=5.2.0,<6",
-    "curl-cffi>=0.7.0b4,<0.14",
-    "pyplayready>=0.6.3,<0.7",
-    "httpx>=0.28.1,<0.29",
-    "cryptography>=45.0.0,<47",
-    "subby",
-    "webvtt-py>=0.5.1",
-    "isodate>=0.7.2",
-    "beaupy>=3.10.2",
-    "scrapy>=2.13.3",
-    "mypy>=1.18.2,<2",
-    "pysubs2>=1.7.0,<2",
-    "PyExecJS>=1.5.1,<2",
-    "jwt>=1.4.0",
-    "langcodes>=3.5.0",
-    "aiohttp-swagger3>=0.10.0, <1",
+  "appdirs>=1.4.4,<2",
+  "Brotli>=1.1.0,<2",
+  "click>=8.1.8,<9",
+  "construct>=2.8.8,<3",
+  "crccheck>=1.3.0,<2",
+  "fonttools>=4.61.1,<5",
+  "jsonpickle>=4.1.1,<5",
+  "langcodes>=3.5.0,<4",
+  "lxml>=6.0.2,<7",
+  "pproxy>=2.7.9,<3",
+  "protobuf>=6.33.3,<7",
+  "pycaption>=2.2.6,<3",
+  "pycryptodomex>=3.23.0,<4",
+  "PyJWT>=2.10.1,<3",
+  "pymediainfo>=6.1.0,<8",
+  "pymp4>=1.4.0,<2",
+  "pymysql>=1.1.0,<2",
+  "pywidevine[serve]>=1.9.0,<2",
+  "PyYAML>=6.0.1,<7",
+  "requests[socks]>=2.32.5,<3",
+  "rich>=14.2.0,<15",
+  "rlaphoenix.m3u8>=3.4.0,<4",
+  "ruamel.yaml>=0.19.1,<0.20",
+  "sortedcontainers>=2.4.0,<3",
+  "subtitle-filter>=1.4.9,<2",
+  "Unidecode>=1.3.8,<2",
+  "urllib3>=2.6.2,<3",
+  "chardet>=5.2.0,<6",
+
+  # curl-cffi is 0.x; keep a tighter cap to avoid accidental breaking changes.
+  "curl-cffi>=0.14.0,<0.15",
+  "pyplayready>=0.8.2,<0.9",
+  "httpx>=0.28.1,<0.29",
+  "cryptography>=45.0.6,<46.0.0",
+
+  # These were unpinned in your list; consider adding bounds once you confirm versions you’ve tested with.
+  "subby",
+
+  "webvtt-py>=0.5.1,<0.6",
+  "isodate>=0.7.2,<0.8",
+  "beaupy>=3.10.2,<4",
+  "scrapy>=2.14.0,<3",
+  "mypy>=1.19.1,<2",
+  "pysubs2>=1.7.0,<2",
+  "PyExecJS>=1.5.1,<2",
+
+  # Keeping your existing cap style here; latest visible is 0.10.0.
+  "aiohttp-swagger3>=0.10.0,<1",
 ]
+
 
 [project.urls]
 Homepage = "https://github.com/envied-dl/envied"

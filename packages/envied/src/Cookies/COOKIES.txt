@@ -1,0 +1,3 @@
+Add you cookies files to this folder.
+
+Name each file to match the service eg DNSP.txt

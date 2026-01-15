@@ -5,6 +5,225 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-01-15
+
+### Added
+
+- **CDM-Aware PlayReady Fallback Detection**: Intelligent DRM fallback based on selected CDM
+  - Adds PlayReady PSSH/KID extraction from track and init data with CDM-aware ordering
+  - When PlayReady CDM is selected, tries PlayReady first then falls back to Widevine
+  - When Widevine CDM is selected (default), tries Widevine first then falls back to PlayReady
+- **Comprehensive Debug Logging**: Enhanced debug logging for downloaders and muxing
+  - Added detailed debug logging to aria2c, curl_impersonate, n_m3u8dl_re, and requests downloaders
+  - Enhanced manifest parsers (DASH, HLS, ISM) with debug logging
+  - Added debug logging to track muxing operations
+
+### Fixed
+
+- **Hybrid DV+HDR10 Filename Detection**: Fixed HDR10 detection in hybrid Dolby Vision filenames
+  - Hybrid DV+HDR10 files were incorrectly named "DV.H.265" instead of "DV.HDR.H.265"
+  - Now checks both `hdr_format_full` and `hdr_format_commercial` fields for HDR10 indicators
+- **Vault Adaptive Batch Sizing**: Improved bulk key operations with adaptive batch sizing
+  - Prevents query limit issues when retrieving large numbers of keys from vaults
+  - Dynamically adjusts batch sizes based on vault response characteristics
+- **Test Command Improvements**: Enhanced test command error detection and sorting
+  - Improved error detection in test command output
+  - Added natural sorting for test results
+
+## [2.1.0] - 2025-11-27
+
+### Added
+
+- **Per-Track Quality-Based CDM Selection**: Dynamic CDM switching during runtime DRM operations
+  - Enables quality-based CDM selection during runtime DRM switching
+  - Different CDMs can be used for different video quality levels within the same download session
+  - Example: Use Widevine L3 for SD/HD and PlayReady SL3 for 4K content
+- **Enhanced Track Export**: Improved export functionality with additional metadata
+  - Added URL field to track export for easier identification
+  - Added descriptor information in export output
+  - Keys now exported in hex-formatted strings
+
+### Changed
+
+- **Dependencies**: Upgraded to latest compatible versions
+  - Updated various dependencies to their latest versions
+
+### Fixed
+
+- **Attachment Preservation**: Fixed attachments being dropped during track filtering
+  - Attachments (screenshots, fonts) were being lost when track list was rebuilt
+  - Fixes image files remaining in temp directory after muxing
+- **DASH BaseURL Resolution**: Added AdaptationSet-level BaseURL support per DASH spec
+  - URL resolution chain now properly follows: MPD → Period → AdaptationSet → Representation
+- **WindscribeVPN Region Support**: Restricted to supported regions with proper error handling
+  - Added error handling for unsupported regions in get_proxy method
+  - Prevents cryptic errors when using unsupported region codes
+- **Filename Sanitization**: Fixed space-hyphen-space handling in filenames
+  - Pre-process space-hyphen-space patterns (e.g., "Title - Episode") before other replacements
+  - Made space-hyphen-space handling conditional on scene_naming setting
+  - Addresses PR #44 by fixing the root cause
+- **CICP Enum Values**: Corrected values to match ITU-T H.273 specification
+  - Added Primaries.Unspecified (value 2) per H.273 spec
+  - Renamed Primaries/Transfer value 0 from Unspecified to Reserved for spec accuracy
+  - Simplified Transfer value 2 from Unspecified_Image to Unspecified
+  - Verified against ITU-T H.273, ISO/IEC 23091-2, H.264/H.265 specs, and FFmpeg enums
+- **HLS Byte Range Parsing**: Fixed TypeError in range_offset conversion
+  - Converted range_offset to int to prevent TypeError in calculate_byte_range
+- **pyplayready Compatibility**: Pinned to <0.7 to avoid KID extraction bug
+
+## [2.0.0] - 2025-11-10
+
+### Breaking Changes
+
+- **REST API Integration**: Core architecture modified to support REST API functionality
+  - Changes to internal APIs for download management and tracking
+  - Title and track classes updated with API integration points
+  - Core component interfaces modified for queue management support
+- **Configuration Changes**: New required configuration options for API and enhanced features
+  - Added `simkl_client_id` now required for Simkl functionality
+  - Service-specific configuration override structure introduced
+  - Debug logging configuration options added
+- **Forced Subtitles**: Behavior change for forced subtitle inclusion
+  - Forced subs no longer auto-included, requires explicit `--forced-subs` flag
+
+### Added
+
+- **REST API Server**: Complete download management via REST API (early development)
+  - Implemented download queue management and worker system
+  - Added OpenAPI/Swagger documentation for easy API exploration
+  - Included download progress tracking and status endpoints
+  - API authentication and comprehensive error handling
+  - Updated core components to support API integration
+  - Early development work with more changes planned
+- **CustomRemoteCDM**: Highly configurable custom CDM API support
+  - Support for third-party CDM API providers with maximum configurability
+  - Full configuration through YAML without code changes
+  - Addresses GitHub issue #26 for flexible CDM integration
+- **WindscribeVPN Proxy Provider**: New VPN provider support
+  - Added WindscribeVPN following NordVPN and SurfsharkVPN patterns
+  - Fixes GitHub issue #29
+- **Latest Episode Download**: New `--latest-episode` CLI option
+  - `-le, --latest-episode` flag to download only the most recent episode
+  - Automatically selects the single most recent episode regardless of season
+  - Fixes GitHub issue #28
+- **Video Track Exclusion**: New `--no-video` CLI option
+  - `-nv, --no-video` flag to skip downloading video tracks
+  - Allows downloading only audio, subtitles, attachments, and chapters
+  - Useful for audio-only or subtitle extraction workflows
+  - Fixes GitHub issue #39
+- **Service-Specific Configuration Overrides**: Per-service fine-tuned control
+  - Support for per-service configuration overrides in YAML
+  - Fine-tuned control of downloader and command options per service
+  - Fixes GitHub issue #13
+- **Comprehensive JSON Debug Logging**: Structured logging for troubleshooting
+  - Binary toggle via `--debug` flag or `debug: true` in config
+  - JSON Lines (.jsonl) format for easy parsing and analysis
+  - Comprehensive logging of all operations (session info, CLI params, CDM details, auth status, title/track metadata, DRM operations, vault queries)
+  - Configurable key logging via `debug_keys` option with smart redaction
+  - Error logging for all critical operations
+  - Removed old text logging system
+- **curl_cffi Retry Handler**: Enhanced session reliability
+  - Added automatic retry mechanism to curl_cffi Session
+  - Improved download reliability with configurable retries
+- **Simkl API Configuration**: New API key support
+  - Added `simkl_client_id` configuration option
+  - Simkl now requires client_id from https://simkl.com/settings/developer/
+- **Custom Session Fingerprints**: Enhanced browser impersonation capabilities
+  - Added custom fingerprint and preset support for better service compatibility
+  - Configurable fingerprint presets for different device types
+  - Improved success rate with services using advanced bot detection
+- **TMDB and Simkl Metadata Caching**: Enhanced title cache system
+  - Added metadata caching to title cache to reduce API calls
+  - Caches movie/show metadata alongside title information
+  - Improves performance for repeated title lookups and reduces API rate limiting
+- **API Enhancements**: Improved REST API functionality
+  - Added default parameter handling for better request processing
+  - Added URL field to services endpoint response for easier service identification
+  - Complete API enhancements for production readiness
+  - Improved error responses with better detail and debugging information
+
+### Changed
+
+- **Binary Search Enhancement**: Improved binary discovery
+  - Refactored to search for binaries in root of binary folder or subfolder named after the binary
+  - Better organization of binary dependencies
+- **Type Annotations**: Modernized to PEP 604 syntax
+  - Updated session.py type annotations to use modern Python syntax
+  - Improved code readability and type checking
+
+### Fixed
+
+- **Audio Description Track Support**: Added option to download audio description tracks
+  - Added `--audio-description/-ad` flag to optionally include descriptive audio tracks
+  - Previously, audio description tracks were always filtered out
+  - Users can now choose to download AD tracks when needed
+  - Fixes GitHub issue #33
+- **Config Directory Support**: Cross-platform user config directory support
+  - Fixed config loading to properly support user config directories across all platforms
+  - Fixes GitHub issue #23
+- **HYBRID Mode Validation**: Pre-download validation for hybrid processing
+  - Added validation to check both HDR10 and DV tracks are available before download
+  - Prevents wasted downloads when hybrid processing would fail
+- **TMDB/Simkl API Keys**: Graceful handling of missing API keys
+  - Improved error handling when TMDB or Simkl API keys are not configured
+  - Better user messaging for API configuration requirements
+- **Forced Subtitles Behavior**: Correct forced subtitle filtering
+  - Fixed forced subtitles being incorrectly included without `--forced-subs` flag
+  - Forced subs now only included when explicitly requested
+- **Font Attachment Constructor**: Fixed ASS/SSA font attachment
+  - Use keyword arguments for Attachment constructor in font attachment
+  - Fixes "Invalid URL: No scheme supplied" error
+  - Fixes GitHub issue #24
+- **Binary Subdirectory Checking**: Enhanced binary location discovery (by @TPD94, PR #19)
+  - Updated binaries.py to check subdirectories in binaries folders named after the binary
+  - Improved binary detection and loading
+- **HLS Manifest Processing**: Minor HLS parser fix (by @TPD94, PR #19)
+- **lxml and pyplayready**: Updated dependencies (by @Sp5rky)
+  - Updated lxml constraint and pyplayready import path for compatibility
+- **DASH Segment Calculation**: Corrected segment handling
+  - Fixed segment count calculation for DASH manifests with startNumber=0
+  - Ensures accurate segment processing for all DASH manifest configurations
+  - Prevents off-by-one errors in segment downloads
+- **HDR Detection and Naming**: Comprehensive HDR format support
+  - Improved HDR detection with comprehensive transfer characteristics checks
+  - Added hybrid DV+HDR10 support for accurate file naming
+  - Better identification of HDR formats across different streaming services
+  - More accurate HDR/DV detection in filename generation
+- **Subtitle Processing**: VTT subtitle handling improvements
+  - Resolved SDH (Subtitles for Deaf and Hard of hearing) stripping crash when processing VTT files
+  - More robust subtitle processing pipeline with better error handling
+  - Fixes crashes when filtering specific VTT subtitle formats
+- **DRM Processing**: Enhanced encoding handling
+  - Added explicit UTF-8 encoding to mp4decrypt subprocess calls
+  - Prevents encoding issues on systems with non-UTF-8 default encodings
+  - Improves cross-platform compatibility for Windows and some Linux configurations
+- **Session Fingerprints**: Updated OkHttp presets
+  - Updated OkHttp fingerprint presets for better Android TV compatibility
+  - Improved success rate with services using fingerprint-based detection
+
+### Documentation
+
+- **GitHub Issue Templates**: Enhanced issue reporting
+  - Improved bug report template with better structure and required fields
+  - Enhanced feature request template for clearer specifications
+  - Added helpful guidance for contributors to provide complete information
+
+### Refactored
+
+- **Import Cleanup**: Removed unused imports
+  - Removed unused mypy import from binaries.py
+  - Fixed import ordering in API download_manager and handlers
+
+### Contributors
+
+This release includes contributions from:
+
+- @Sp5rky - REST API server implementation, dependency updates
+- @stabbedbybrick - curl_cffi retry handler (PR #31)
+- @stabbedbybrick - n_m3u8dl-re refactor (PR #38)
+- @TPD94 - Binary search enhancements, manifest parser fixes (PR #19)
+- @scene (Andy) - Core features, configuration system, bug fixes
+
 ## [1.4.8] - 2025-10-08
 
 ### Added
@@ -13,6 +232,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enables strict language code matching without fallbacks
 - **No-Mux Flag**: New `--no-mux` flag to skip muxing tracks into container files
   - Useful for keeping individual track files separate
+- **DecryptLabs API Integration for HTTP Vault**: Enhanced vault support
+  - Added DecryptLabs API support to HTTP vault for improved key retrieval
 - **AC4 Audio Codec Support**: Enhanced audio format handling
   - Added AC4 codec support in Audio class with updated mime/profile handling
 - **pysubs2 Subtitle Conversion**: Extended subtitle format support
@@ -177,7 +398,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Matroska Tag Compliance**: Enhanced media container compatibility  
+- **Matroska Tag Compliance**: Enhanced media container compatibility
   - Fixed Matroska tag compliance with official specification
 - **Application Branding**: Cleaned up version display
   - Removed old devine version reference from banner to avoid developer confusion

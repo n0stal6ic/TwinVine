@@ -228,8 +228,8 @@ class RteLoader(BaseLoader):
                     "Error downloading video:",
                     e,
                     "Is devine/envied installed correctly via 'pip install <program name>?",
-                )
-            return None
+                )    
+        return None
         
 
     def fetch_videos_by_category(self, browse_url):

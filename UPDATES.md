@@ -1,5 +1,10 @@
 **Updates**
 
+**19 Jan 2026**
+
+- upstream envied to 2.3.0
+- correction RTE vinefeeder service
+
 **31 Dec 2025**
 
 **Altered:**

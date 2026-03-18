@@ -1,5 +1,6 @@
 import atexit
 import logging
+from datetime import datetime
 
 import click
 import urllib3

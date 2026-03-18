@@ -11,7 +11,7 @@ directories:
 ```
 See help text for each service:
 
-`unshackle dl SERVICE --help`
+`envied dl SERVICE --help`
 
 ## Notes:
 Some versions of the dependencies work better than others. These are the recommended versions as of 25/11/11:

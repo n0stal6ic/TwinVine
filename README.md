@@ -17,12 +17,17 @@ TwinVine is the easy way to handle your download tasks.
 
 
 **usage**
-	
-	
+
+TwinVine is a sophisticated piece of software engineering, (if I am allowed to say that) , handling two Python packages at once, each inter-playing with the other. It needs treating differently from anything you will have used before. 
+
+All access must be done via the package manager - uv. You have two ways in
+
 ```
-	uv run envied dl (options) (service) (program url)
-	uv run vinefeeder  - to open the interactive GUI for search, browse, etc.
-	To go to the command line use of 'envied' after using the GUI: close the GUI directly, or ctrl+c in terminal.
+    uv run vinefeeder
+    uv run envied dl --select-titles <service> <url>	
+	
+
+	To go to the command line use of 'envied', on Linix you may select 'run envied' after clicking the GUI envied button. On Windows, close the GUI directly, or ctrl+c to end the program and return to the terminal.
 ```
 
 	

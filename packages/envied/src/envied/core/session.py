@@ -44,6 +44,17 @@ FINGERPRINT_PRESETS = {
         "akamai": "4:16777216|16711681|0|m,p,a,s",
         "description": "OkHttp 5.x (BoringSSL TLS stack)",
     },
+    "shield_okhttp": {
+        "ja3": (
+            "771,"  # TLS 1.2
+            "4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,"  # Ciphers (OkHttp 4.11)
+            "0-23-65281-10-11-35-16-5-13-51-45-43-21,"  # Extensions (incl padding ext 21)
+            "29-23-24,"  # Named groups (x25519, secp256r1, secp384r1)
+            "0"  # EC point formats
+        ),
+        "akamai": "4:16777216|16711681|0|m,p,a,s",
+        "description": "NVIDIA SHIELD Android TV OkHttp 4.11 (captured JA3)",
+    },
 }
 
 
@@ -56,7 +67,7 @@ class MaxRetriesError(exceptions.RequestException):
 class CurlSession(Session):
     def __init__(
         self,
-        max_retries: int = 10,
+        max_retries: int = 5,
         backoff_factor: float = 0.2,
         max_backoff: float = 60.0,
         status_forcelist: list[int] | None = None,
@@ -150,7 +161,7 @@ def session(
         browser: Browser to impersonate (e.g. "chrome124", "firefox", "safari") OR
                  fingerprint preset name (e.g. "okhttp4").
                  Uses the configured default from curl_impersonate.browser if not specified.
-                 Available presets: okhttp4
+                 Available presets: okhttp4, okhttp5
                  See https://github.com/lexiforest/curl_cffi#sessions for browser options.
         ja3: Custom JA3 TLS fingerprint string (format: "SSLVersion,Ciphers,Extensions,Curves,PointFormats").
              When provided, curl_cffi will use this exact TLS fingerprint instead of the browser's default.
@@ -172,7 +183,7 @@ def session(
                   - cert: Client certificate (str or tuple)
 
                   Extra arguments for retry handler:
-                  - max_retries: Maximum number of retries (int, default 10)
+                  - max_retries: Maximum number of retries (int, default 5)
                   - backoff_factor: Backoff factor (float, default 0.2)
                   - max_backoff: Maximum backoff time (float, default 60.0)
                   - status_forcelist: List of status codes to force retry (list, default [429, 500, 502, 503, 504])

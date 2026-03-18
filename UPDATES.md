@@ -1,10 +1,5 @@
 **Updates**
 
-**16 Feb 2026**
-
-- upstream envied to 3.0.0
-  envied's --select-titles option now follows dev branch of unshackle.
-
 **19 Jan 2026**
 
 - upstream envied to 2.3.0

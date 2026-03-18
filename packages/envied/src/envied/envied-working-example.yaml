@@ -11,8 +11,66 @@ muxing:
 # shakapackager or mp4decrypt
 decryption: shakapackager
 
-scene_naming: false
-series_year: false
+# Custom output templates for filenames
+# Configure output_template in your envied.yaml to control filename format.
+# If not configured, default scene-style templates are used and a warning is shown.
+# Available variables: {title}, {year}, {season}, {episode}, {season_episode}, {episode_name},
+#                     {quality}, {resolution}, {source}, {audio}, {audio_channels}, {audio_full},
+#                     {video}, {hdr}, {hfr}, {atmos}, {dual}, {multi}, {tag}, {edition}, {repack},
+#                     {lang_tag}
+# Conditional variables (included only if present): Add ? suffix like {year?}, {episode_name?}, {hdr?}
+# Customize the templates below:
+#
+# Example outputs:
+# Scene movies: 'The.Matrix.1999.1080p.SERVICE.WEB-DL.DDP5.1.H.264-EXAMPLE'
+# Scene movies (HDR): 'Dune.2021.2160p.SERVICE.WEB-DL.DDP5.1.HDR10.H.265-EXAMPLE'
+# Scene movies (REPACK): 'Dune.2021.REPACK.2160p.SERVICE.WEB-DL.DDP5.1.H.265-EXAMPLE'
+# Scene series: 'Breaking.Bad.2008.S01E01.Pilot.1080p.SERVICE.WEB-DL.DDP5.1.H.264-EXAMPLE'
+# Plex movies: 'The Matrix (1999)'
+# Plex series: 'Breaking Bad S01E01 Pilot'
+output_template:
+  # Scene-style naming (dot-separated)
+  #movies: '{title}.{year}.{repack?}.{edition?}.{quality}.{source}.WEB-DL.{dual?}.{multi?}.{audio_full}.{atmos?}.{hdr?}.{hfr?}.{video}-{tag}'
+  #series: '{title}.{year?}.{season_episode}.{episode_name?}.{repack?}.{edition?}.{quality}.{source}.WEB-DL.{dual?}.{multi?}.{audio_full}.{atmos?}.{hdr?}.{hfr?}.{video}-{tag}'
+  #songs: '{track_number}.{title}.{repack?}.{edition?}.{source?}.WEB-DL.{audio_full}.{atmos?}-{tag}'
+  #
+  # Plex-friendly naming (space-separated, clean format)
+  movies: '{title} ({year})'
+  series: '{title} {season_episode} {episode_name?}'
+  songs: '{track_number}. {title}'
+  #
+  # Minimal naming (basic info only)
+  # movies: '{title}.{year}.{quality}'
+  # series: '{title}.{season_episode}.{episode_name?}'
+  #
+  # Custom scene-style with specific elements
+  # movies: '{title}.{year}.{quality}.{hdr?}.{source}.WEB-DL.{audio_full}.{video}-{tag}'
+  # series: '{title}.{year?}.{season_episode}.{episode_name?}.{quality}.{hdr?}.{source}.WEB-DL.{audio_full}.{atmos?}.{video}-{tag}'
+
+# Language-based tagging for output filenames
+# Automatically adds language identifiers (e.g., DANiSH, NORDiC, DKsubs) based on
+# audio and subtitle track languages. Rules are evaluated in order; first match wins.
+# Use {lang_tag?} in your output_template to place the tag in the filename.
+#
+# Conditions (all conditions in a rule must match):
+#   audio: <lang>                  - any audio track matches this language
+#   subs_contain: <lang>           - any subtitle matches this language
+#   subs_contain_all: [lang, ...]  - subtitles include ALL listed languages
+#
+# language_tags:
+#   rules:
+#     - audio: da
+#       tag: DANiSH
+#     - audio: sv
+#       tag: SWEDiSH
+#     - audio: nb
+#       tag: NORWEGiAN
+#     - audio: en
+#       subs_contain_all: [da, sv, nb]
+#       tag: NORDiC
+#     - audio: en
+#       subs_contain: da
+#       tag: DKsubs
 
 # Login credentials for each Service
 credentials:
@@ -59,12 +117,12 @@ key_vaults:
 #- type: SQLite
 #  name: Local vault
 #  path: key_store.db
-- type: HTTPAPI
-  name: drmlab
+- type: HTTP
+  name: DRMLab
   host: http://api.drmlab.io/vault/
   password: gEX75q7I5YVkvgF5SUkcNd41IbGrDtTT
-
-
+  api_mode: json
+  no_push: false
 
 # Choose what software to use to download data
 downloader: n_m3u8dl_re

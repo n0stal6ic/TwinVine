@@ -1,3 +1,4 @@
+from hashlib import md5
 import re
 import time
 import uuid
@@ -9,13 +10,16 @@ import jwt
 from langcodes import Language
 
 from envied.core.manifests import DASH
+from envied.core.manifests.hls import HLS
 from envied.core.search_result import SearchResult
 from envied.core.service import Service
 from envied.core.session import session
 from envied.core.titles import Episode, Series
 from envied.core.tracks import Attachment, Chapters, Tracks
+from envied.core.tracks.audio import Audio
 from envied.core.tracks.chapter import Chapter
 from envied.core.tracks.subtitle import Subtitle
+from envied.core.tracks.video import Video
 
 
 class CR(Service):
@@ -23,18 +27,21 @@ class CR(Service):
     Service code for Crunchyroll streaming service (https://www.crunchyroll.com).
 
     \b
-    Version: 2.0.0
-    Author: sp4rk.y
-    Date: 2025-11-01
+    Version: 2.1.1
+    Author: sp4rk.y & Dex
+    Date: 2026-02-28
     Authorization: Credentials
     Robustness:
         Widevine:
             L3: 1080p, AAC2.0
-
+        PlayReady:
+            SL3000: 1080p, AAC2.0
+            SL2000: 1080p, AAC2.0
     \b
     Tips:
-        - Input should be complete URL or series ID
+        - Input should be complete URL or series ID or Episode ID
             https://www.crunchyroll.com/series/GRMG8ZQZR/series-name OR GRMG8ZQZR
+            https://www.crunchyroll.com/en-US/watch/G2XU02X75/ryomen-sukuna OR G2XU02X75
         - Supports multiple audio and subtitle languages
         - Device ID is cached for consistent authentication across runs
 
@@ -44,30 +51,46 @@ class CR(Service):
         - Manages concurrent stream limits automatically
     """
 
-    TITLE_RE = r"^(?:https?://(?:www\.)?crunchyroll\.com/(?:series|watch)/)?(?P<id>[A-Z0-9]+)"
+    TITLE_RE = r"^(?:https?://(?:www\.)?crunchyroll\.com/(?:[a-z]{2}(?:-[a-z]{2})?/)?(?:series|watch)/)?(?P<id>[A-Z0-9]+)"
     LICENSE_LOCK = Lock()
     MAX_CONCURRENT_STREAMS = 3
     ACTIVE_STREAMS: list[tuple[str, str]] = []
-
-    @staticmethod
-    def get_session():
-        return session("okhttp4")
-
+    
+    # Reverse map for audio_locale to match 2 chars languages in a_lang param
+    LANG_MAP: dict = {
+        "es-LA": "es-419",
+        "ar-ME": "ar-SA",
+        "de-DE": "de",
+        "en-US": "en",
+        "es-ES": "es",
+        "fr-FR": "fr",
+        "hi-IN": "hi",
+        "it-IT": "it",
+        "ja-JP": "ja",
+        "ko-KR": "kr",
+        "ru-RU": "ru",
+        "zh-CN": "zh",
+        "en-GB": "en"
+    }
+    
     @staticmethod
     @click.command(name="CR", short_help="https://crunchyroll.com")
     @click.argument("title", type=str, required=True)
+    @click.option("-hb", "--high-audio-bitrate", is_flag=True, default=False, help="Fetch audio tracks with highest bitrate (192kbps AAC)")
+
     @click.pass_context
     def cli(ctx, **kwargs) -> "CR":
         return CR(ctx, **kwargs)
 
-    def __init__(self, ctx, title: str):
+    def __init__(self, ctx, title: str, high_audio_bitrate: bool):
+        super().__init__(ctx)
         self.title = title
         self.account_id: Optional[str] = None
         self.access_token: Optional[str] = None
         self.token_expiration: Optional[int] = None
         self.anonymous_id = str(uuid.uuid4())
-
-        super().__init__(ctx)
+        self.audio_lang = ctx.parent.params.get("lang") or ctx.parent.params.get("a_lang")
+        self.high_audio_bitrate = high_audio_bitrate
 
         device_cache_key = "cr_device_id"
         cached_device = self.cache.get(device_cache_key)
@@ -86,6 +109,10 @@ class CR(Service):
 
         self.session.headers.update(self.config.get("headers", {}))
         self.session.headers["etp-anonymous-id"] = self.anonymous_id
+
+    @staticmethod
+    def get_session():
+        return session("okhttp4")
 
     @property
     def auth_header(self) -> dict:
@@ -127,11 +154,7 @@ class CR(Service):
             self.token_expiration = cached.data.get("token_expiration")
         else:
             if not credential:
-                class HardcodedCreds:
-                    username = "akjrtx@gmail.com"
-                    password = "Ariyan@45"
-                    sha1 = "dummy_hash"
-                credential = HardcodedCreds()
+                raise ValueError("Username and password credential required for authentication")
 
             response = self.session.post(
                 url=self.config["endpoints"]["token"],
@@ -203,9 +226,27 @@ class CR(Service):
             params={"locale": self.config["params"]["locale"]},
         ).json()
 
-        if "error" in series_response:
-            raise ValueError(f"Series not found: {series_id}")
+        if "code" in series_response:
+            # Fallback to try with episode id
+            episode_response = self.session.get(
+                url=self.config["endpoints"]["episodes"].format(episode_id=series_id),
+                params={"locale": self.config["params"]["locale"]},
+            ).json()
 
+            if "code" in episode_response:
+                raise ValueError(f"Series or episode not found: {series_id}")
+
+            # Extract series id from episodes response
+            series_id = episode_response["data"][0]["episode_metadata"]["series_id"]
+
+            series_response = self.session.get(
+                url=self.config["endpoints"]["series"].format(series_id=series_id),
+                params={"locale": self.config["params"]["locale"]},
+            ).json()
+
+            if "code" in series_response:
+                raise ValueError(f"Series not found from episode metadata: {series_id}")
+            
         series_data = (
             series_response.get("data", [{}])[0] if isinstance(series_response.get("data"), list) else series_response
         )
@@ -297,14 +338,16 @@ class CR(Service):
 
     def set_track_metadata(self, tracks: Tracks, episode_id: str, is_original: bool) -> None:
         """Set metadata for video and audio tracks."""
-        for video in tracks.videos:
-            video.needs_repack = True
-            video.data["episode_id"] = episode_id
-            video.is_original_lang = is_original
-        for audio in tracks.audio:
-            audio.data["episode_id"] = episode_id
-            audio.is_original_lang = is_original
+        for track in tracks:
+            if isinstance(track, Video):
+                track.needs_repack = True
+            if isinstance(track, (Audio,Video)):
+                track.data["episode_id"] = episode_id
+                track.is_original_lang = is_original
+                if is_original:
+                    track.name = f"{track.name} [Original]"
 
+            
     def get_tracks(self, title: Episode) -> Tracks:
         """Fetch video, audio, and subtitle tracks for an episode."""
         self.ensure_authenticated()
@@ -325,106 +368,169 @@ class CR(Service):
 
         tracks = None
 
+        #endpoints_playback = ["playback"]
+        
+        sdh_list = []
         for idx, version in enumerate(versions):
             audio_locale = version.get("audio_locale")
             version_guid = version.get("guid")
             is_original = version.get("original", False)
 
-            if not audio_locale:
+            # Verify mapped audio locale to match CR locales
+            mapped_locale = self.LANG_MAP.get(audio_locale, audio_locale)
+            if self.audio_lang and ("all" in self.audio_lang or "best" in self.audio_lang or ("orig" in self.audio_lang and is_original)):
+                pass
+            elif not audio_locale or (audio_locale not in self.audio_lang and mapped_locale not in self.audio_lang):
                 continue
 
             request_episode_id = version_guid if version_guid else episode_id
-
-            if idx == 0 and not version_guid:
-                version_response = initial_response
-                version_token = version_response.get("token")
-            else:
-                if idx == 1 and not versions[0].get("guid"):
-                    initial_token = initial_response.get("token")
-                    if initial_token:
-                        self.close_stream(episode_id, initial_token)
-
-                try:
-                    version_response = self.get_playback_data(request_episode_id, track_stream=False)
-                except ValueError as e:
-                    self.log.warning(f"Could not get playback info for audio {audio_locale}: {e}")
-                    continue
-
-                version_token = version_response.get("token")
-
-            hard_subs = version_response.get("hardSubs", {})
-            dash_url = None
-
-            if "none" in hard_subs:
-                dash_url = hard_subs["none"].get("url")
-            elif hard_subs:
-                first_key = list(hard_subs.keys())[0]
-                dash_url = hard_subs[first_key].get("url")
-
-            if not dash_url:
-                self.log.warning(f"No DASH manifest found for audio {audio_locale}, skipping")
-                if version_token:
-                    self.close_stream(request_episode_id, version_token)
-                continue
-
+            
+            #for endpoint in endpoints_playback:
             try:
-                version_tracks = DASH.from_url(
-                    url=dash_url,
-                    session=self.session,
-                ).to_tracks(language=audio_locale)
-
-                if tracks is None:
-                    tracks = version_tracks
-                    self.set_track_metadata(tracks, request_episode_id, is_original)
+                if idx == 0 and not version_guid: # and endpoint == "playback":
+                    version_response = initial_response
+                    version_token = version_response.get("token")
                 else:
-                    self.set_track_metadata(version_tracks, request_episode_id, is_original)
-                    for video in version_tracks.videos:
-                        tracks.add(video)
-                    for audio in version_tracks.audio:
-                        tracks.add(audio)
+                    if idx == 1 and not versions[0].get("guid"): # and endpoint == "playback":
+                        initial_token = initial_response.get("token")
+                        if initial_token:
+                            self.close_stream(episode_id, initial_token)
 
-            except Exception as e:
-                self.log.warning(f"Failed to parse DASH manifest for audio {audio_locale}: {e}")
-                if version_token:
-                    self.close_stream(request_episode_id, version_token)
-                continue
-
-            if is_original:
-                captions = version_response.get("captions", {})
-                subtitles_data = version_response.get("subtitles", {})
-                all_subs = {**captions, **subtitles_data}
-
-                for lang_code, sub_data in all_subs.items():
-                    if lang_code == "none":
+                    try:
+                        version_response = self.get_playback_data(request_episode_id, track_stream=False)
+                    except ValueError as e:
+                        self.log.warning(f"Could not get playback info for audio {audio_locale}: {e}")
                         continue
 
-                    if isinstance(sub_data, dict) and "url" in sub_data:
+                    version_token = version_response.get("token")
+
+                hard_subs = version_response.get("hardSubs", {})
+                dash_url = None
+                root_url = version_response.get("url")
+                
+                if root_url and  "/clean/" in root_url:
+                    dash_url = root_url
+                    
+                elif "none" in hard_subs:
+                    dash_url = hard_subs["none"].get("url")
+                    
+                elif hard_subs:
+                    first_key = list(hard_subs.keys())[0]
+                    dash_url = hard_subs[first_key].get("url")
+
+                if not dash_url:
+                    self.log.warning(f"No DASH manifest found for audio {audio_locale}, skipping")
+                    if version_token:
+                        self.close_stream(request_episode_id, version_token)
+                    continue
+                
+                try:
+
+                    version_tracks = (HLS if "m3u8" in dash_url else DASH).from_url(
+                        url=dash_url,
+                        session=self.session,
+                    ).to_tracks(language=audio_locale)
+                    
+                    # Select high audio bitrate replacing 0 and 1 in mpd url
+                    if self.high_audio_bitrate:
                         try:
-                            lang = Language.get(lang_code)
-                        except (ValueError, LookupError):
-                            lang = Language.get("en")
+                            version_tracks.audio.clear();
+                            
+                            high_bitrate_tracks = (HLS if "m3u8" in dash_url else DASH).from_url(
+                                url=dash_url.replace("/0/", "/1/"),
+                                session=self.session,
+                            ).to_tracks(language=audio_locale)
+                            
+                            version_tracks.audio = high_bitrate_tracks.audio
+                        except Exception as e:
+                            self.log.warning(f"Failed to fetch high bitrate audio for {audio_locale}: {e}")
+                        
+                    if tracks is None:
+                        tracks = version_tracks
+                        self.set_track_metadata(tracks, request_episode_id, is_original)
+                    else:
+                        self.set_track_metadata(version_tracks, request_episode_id, is_original)
+                        # Add videos 
+                        for video in version_tracks.videos:
+                            if not any(v.id == video.id for v in tracks.videos):
+                                tracks.add(video)
+                                
+                        # Add audios non-existing in tracks or with higher bitrate
+                        for audio in version_tracks.audio:
+                            if audio.channels == "1.0":
+                                audio.channels = "2.0" # change audio channels for correct channel
+                                
+                            existing_audio = next((a for a in tracks.audio if a.language == audio.language), None)
+                            if existing_audio is None or (hasattr(audio, 'bitrate') and hasattr(existing_audio, 'bitrate') and audio.bitrate > existing_audio.bitrate):
+                                tracks.add(audio)
+                            elif existing_audio is None:
+                                tracks.add(audio)
 
-                        subtitle_format = sub_data.get("format", "vtt").lower()
-                        if subtitle_format == "ass" or subtitle_format == "ssa":
-                            codec = Subtitle.Codec.SubStationAlphav4
-                        else:
-                            codec = Subtitle.Codec.WebVTT
+                except Exception as e:
+                    self.log.warning(f"Failed to parse DASH manifest for audio {audio_locale}: {e}")
+                    if version_token:
+                        self.close_stream(request_episode_id, version_token)
+                    continue
 
+                #if endpoint == "playback":
+                # Handling subtitles code
+                try:
+                    lang_audio = [x for x in version_response.get("versions", []) if x["guid"] == version_guid][0]["audio_locale"]
+                except (IndexError, KeyError, TypeError):
+                    lang_audio = title.language
+                    
+                captions = version_response.get("captions", {})
+                subtitles_data = version_response.get("subtitles", {})
+                
+                if captions:
+                    for subtitle in captions.values():
+                        
+                        if subtitle["language"] == "none":
+                            continue
+                        
+                        lang = subtitle["language"]
+                        subtitle_format = subtitle.get("format", "vtt").lower()
+                        codec = Subtitle.Codec.SubStationAlphav4 if subtitle_format in ["ass", "ssa"] else Subtitle.Codec.WebVTT
+                        sdh_list.append(lang)
                         tracks.add(
                             Subtitle(
-                                id_=f"subtitle-{audio_locale}-{lang_code}",
-                                url=sub_data["url"],
+                                id_=md5(subtitle["url"].encode()).hexdigest()[0:6],
+                                url=subtitle["url"],
                                 codec=codec,
-                                language=lang,
-                                forced=False,
+                                language=Language.get(lang),
+                                sdh=True,
+                            ),
+                            warn_only=True,
+                        )
+                    
+                if subtitles_data:
+                    for subtitle in subtitles_data.values():
+                        if subtitle["language"] == "none":
+                            continue
+                        
+                        lang = subtitle["language"]
+                        subtitle_format = subtitle.get("format", "vtt").lower()
+                        codec = Subtitle.Codec.SubStationAlphav4 if subtitle_format in ["ass", "ssa"] else Subtitle.Codec.WebVTT
+                        tracks.add(
+                            Subtitle(
+                                id_=md5(subtitle["url"].encode()).hexdigest()[0:6],
+                                url=subtitle["url"],
+                                codec=codec,
+                                language=Language.get(lang),
+                                forced=False if (str(lang_audio) == str(title.language)) and (lang not in sdh_list) else True,
                                 sdh=False,
                             ),
                             warn_only=True,
                         )
 
-            if version_token:
-                self.close_stream(request_episode_id, version_token)
-
+                if version_token:
+                    self.close_stream(request_episode_id, version_token)
+                    
+            # continuar si no se pudo procesar el endpoint
+            except Exception as e:
+                self.log.warning(f"Error processing version {idx}: {e}")
+                continue
+            
         if versions and versions[0].get("guid"):
             initial_token = initial_response.get("token")
             if initial_token:
@@ -433,15 +539,6 @@ class CR(Service):
         if tracks is None:
             raise ValueError(f"Failed to fetch any tracks for episode: {episode_id}")
 
-        for track in tracks.audio + tracks.subtitles:
-            if track.language:
-                try:
-                    lang_obj = Language.get(str(track.language))
-                    base_lang = Language.get(lang_obj.language)
-                    lang_display = base_lang.language_name()
-                    track.name = lang_display
-                except (ValueError, LookupError):
-                    pass
 
         images = title.data.get("images", {})
         thumbnails = images.get("thumbnail", [])
@@ -451,10 +548,65 @@ class CR(Service):
                 thumb_index = min(7, len(thumb_variants) - 1)
                 thumb = thumb_variants[thumb_index]
                 if isinstance(thumb, dict) and "source" in thumb:
-                    thumbnail_name = f"{title.name or title.title} - S{title.season:02d}E{title.number:02d}"
+                    raw_name = f"{title.name or title.title} - S{title.season:02d}E{title.number:02d}"
+                    thumbnail_name = self.sanitize_filename(raw_name)
+                    tracks.add(Attachment.from_url(url=thumb["source"], name=thumbnail_name))
 
         return tracks
 
+    def get_playready_license(self, challenge: bytes, title: Episode, track) -> bytes:
+        """
+        Get PlayReady license for decryption.
+
+        Creates a fresh playback session for each track, gets the license, then immediately
+        closes the stream. This prevents hitting the 3 concurrent stream limit.
+        CDN authorization is embedded in the manifest URLs, not tied to active sessions.
+        """
+        self.ensure_authenticated()
+
+        track_episode_id = track.data.get("episode_id", title.id)
+
+        with self.LICENSE_LOCK:
+            playback_token = None
+            try:
+                playback_data = self.get_playback_data(track_episode_id, track_stream=True)
+                playback_token = playback_data.get("token")
+
+                if not playback_token:
+                    raise ValueError(f"No playback token in response for {track_episode_id}")
+
+                track.data["playback_token"] = playback_token
+
+                license_response = self.session.post(
+                    url=self.config["endpoints"]["license_playready"],
+                    params={"specConform": "true"},
+                    data=challenge,
+                    headers={
+                        **self.auth_header,
+                        "content-type": "application/octet-stream",
+                        "accept": "application/octet-stream",
+                        "x-cr-content-id": track_episode_id,
+                        "x-cr-video-token": playback_token,
+                    },
+                )
+
+                if license_response.status_code != 200:
+                    self.log.error(f"License request failed with status {license_response.status_code}")
+                    self.log.error(f"Response: {license_response.text[:500]}")
+                    self.close_stream(track_episode_id, playback_token)
+                    raise ValueError(f"License request failed: {license_response.status_code}")
+
+                self.close_stream(track_episode_id, playback_token)
+                return license_response.content
+
+            except Exception:
+                if playback_token:
+                    try:
+                        self.close_stream(track_episode_id, playback_token)
+                    except Exception:
+                        pass
+                raise
+            
     def get_widevine_license(self, challenge: bytes, title: Episode, track) -> bytes:
         """
         Get Widevine license for decryption.
@@ -738,9 +890,21 @@ class CR(Service):
             response = self.session.get(
                 url=self.config["endpoints"]["playback"].format(episode_id=episode_id),
                 params={"queue": "false"},
-            ).json()
+            )
 
-            if "error" in response:
+            # Handle 429 response status code before json parsing
+            if response.status_code == 429:
+                retry_after = int(response.headers.get("Retry-After", 60))
+                self.log.warning(f"Rate limited (429). Waiting {retry_after}s before retry... (attempt {attempt + 1}/{max_retries + 1})")
+                if attempt < max_retries:
+                    cleared = self.clear_all_sessions()
+                    time.sleep(retry_after)
+                    continue
+                raise ValueError(f"Rate limit exceeded for episode: {episode_id}")
+
+            response = response.json()
+            
+            if "code" in response:
                 error_code = response.get("code", "")
                 error_msg = response.get("message", response.get("error", "Unknown error"))
 
@@ -775,3 +939,7 @@ class CR(Service):
         if not match:
             raise ValueError(f"Could not parse series ID from: {title_input}")
         return match.group("id")
+    
+    @staticmethod
+    def sanitize_filename(name):
+        return re.sub(r'[<>:"/\\|?*¿¡]', '', name).strip()

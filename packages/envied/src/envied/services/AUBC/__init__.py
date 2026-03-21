@@ -24,7 +24,7 @@ class AUBC(Service):
     Service code for ABC iView streaming service (https://iview.abc.net.au/).
 
     \b
-    Version: 1.0.3
+    Version: 1.0.5
     Author: stabbedbybrick
     Authorization: None
     Robustness:
@@ -119,8 +119,8 @@ class AUBC(Service):
         captions = next((x.get("captions") for x in playlist if x["type"] == "program"), None)
         title.data["protected"] = streams.get("protected", False)
 
-        if "720" in streams:
-            streams["1080"] = streams["720"].replace("720", "1080")
+        if hd := streams.get("720"):
+            streams["1080"] = hd.replace("720.mpd", "1080.mpd")
 
         manifest = next(
             (url for key in ["1080", "720", "sd", "sd-low"] if key in streams
@@ -130,7 +130,7 @@ class AUBC(Service):
         )
         if not manifest:
             raise ValueError("Could not find a manifest for this title")
-
+        
         tracks = DASH.from_url(manifest, self.session).to_tracks(title.language)
 
         for track in tracks.audio:
@@ -180,8 +180,11 @@ class AUBC(Service):
 
     def _series(self, title: str) -> Episode:
         data = self._request("GET", "/v3/series/{}".format(title))
+        content = data if isinstance(data, list) else [data]
 
-        seasons = data if isinstance(data, list) else [data]
+        # Remove duplicate season entries
+        seen = set()
+        seasons = [x for x in content if (key := x.get("id")) not in seen and not seen.add(key)]
 
         episodes = [
             self.create_episode(episode)
